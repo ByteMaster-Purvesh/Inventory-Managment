@@ -25,7 +25,34 @@ export const useReportStore = create((set, get) => ({
       customer,
       componentsName,
       date: new Date().toLocaleDateString('en-GB'), // DD/MM/YYYY
+      projectNo: '',
+      productionOrderNo: '',
+      drgNo: '',
+      revNo: '0',
+      inspectionReportNo: '',
+      asslySubAssly: '',
+      qaPlanNo: '',
+      inspectionStage: 'FINAL',
+      poNo: '',
+      rawMaterialUsed: '',
+      quantity: '',
+      rawMtrlIdnCtrlNo: '',
+      identificationNos: '',
+      rawMtrlInDrg: '',
+      supplierName: '',
+      rvNo: '',
+      remarks: '',
+      designerRemarks: '',
+      supplierStampUrl: null,
       rows: [], // Holds the tabular data
+      settings: {
+        fontFamily: 'Helvetica',
+        fontSize: 11,
+        isBold: false,
+        isItalic: false,
+        textAlign: 'left',
+        logoUrl: null, // Base64 image
+      },
     };
     
     set((state) => {
@@ -46,6 +73,23 @@ export const useReportStore = create((set, get) => ({
     set((state) => {
       if (!state.activeProject) return state;
       const updatedProject = { ...state.activeProject, ...updates };
+      const updatedProjects = state.projects.map((p) => 
+        p.id === updatedProject.id ? updatedProject : p
+      );
+      saveToLocalStorage(updatedProjects);
+      return { activeProject: updatedProject, projects: updatedProjects };
+    });
+  },
+
+  updateProjectSettings: (field, value) => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      // Ensure settings exists for older projects
+      const currentSettings = state.activeProject.settings || {
+        fontFamily: 'Helvetica', fontSize: 11, isBold: false, isItalic: false, textAlign: 'left', logoUrl: null
+      };
+      const updatedSettings = { ...currentSettings, [field]: value };
+      const updatedProject = { ...state.activeProject, settings: updatedSettings };
       const updatedProjects = state.projects.map((p) => 
         p.id === updatedProject.id ? updatedProject : p
       );
@@ -111,6 +155,27 @@ export const useReportStore = create((set, get) => ({
         projects: updatedProjects,
         activeRowId: null
       };
+    });
+  },
+
+  reorderRows: (sourceIndex, destinationIndex) => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      const newRows = Array.from(state.activeProject.rows);
+      const [movedRow] = newRows.splice(sourceIndex, 1);
+      newRows.splice(destinationIndex, 0, movedRow);
+      
+      // Update serial numbers
+      const updatedRows = newRows.map((row, index) => ({
+        ...row,
+        srNo: (index + 1).toString().padStart(2, '0')
+      }));
+
+      const updatedProject = { ...state.activeProject, rows: updatedRows };
+      const updatedProjects = state.projects.map((p) => p.id === updatedProject.id ? updatedProject : p);
+      saveToLocalStorage(updatedProjects);
+
+      return { activeProject: updatedProject, projects: updatedProjects };
     });
   },
 

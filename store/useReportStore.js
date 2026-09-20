@@ -1,0 +1,183 @@
+import { create } from 'zustand';
+import { calculateTolerance } from '../lib/calculations';
+
+// Mock DB (localStorage)
+const saveToLocalStorage = (projects) => {
+  localStorage.setItem('projects', JSON.stringify(projects));
+};
+
+const loadFromLocalStorage = () => {
+  const data = localStorage.getItem('projects');
+  return data ? JSON.parse(data) : [];
+};
+
+export const useReportStore = create((set, get) => ({
+  projects: loadFromLocalStorage(),
+  activeProject: null,
+  activeRowId: null,
+
+  setActiveRow: (id) => set({ activeRowId: id }),
+
+  createProject: (projectName, customer, componentsName) => {
+    const newProject = {
+      id: Date.now().toString(),
+      projectName,
+      customer,
+      componentsName,
+      date: new Date().toLocaleDateString('en-GB'), // DD/MM/YYYY
+      rows: [], // Holds the tabular data
+    };
+    
+    set((state) => {
+      const updatedProjects = [newProject, ...state.projects].slice(0, 5); // Keep last 5
+      saveToLocalStorage(updatedProjects);
+      return { projects: updatedProjects, activeProject: newProject };
+    });
+    return newProject.id;
+  },
+
+  setActiveProject: (id) => {
+    set((state) => ({
+      activeProject: state.projects.find((p) => p.id === id) || null,
+    }));
+  },
+
+  updateActiveProject: (updates) => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      const updatedProject = { ...state.activeProject, ...updates };
+      const updatedProjects = state.projects.map((p) => 
+        p.id === updatedProject.id ? updatedProject : p
+      );
+      saveToLocalStorage(updatedProjects);
+      return { activeProject: updatedProject, projects: updatedProjects };
+    });
+  },
+
+  addRow: () => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      const newRow = {
+        id: Date.now().toString(),
+        srNo: (state.activeProject.rows.length + 1).toString().padStart(2, '0'),
+        drawingSize: '',
+        drawingSizeSymbol: '', // ±, +, -, %, None
+        toleranceVal: '',
+        calculatedTolerance: '', // [min, max] or specific string
+        observations: [''], // Array for multiple jobs/components
+        instrument: '',
+        instrumentNo: ''
+      };
+      const updatedProject = {
+        ...state.activeProject,
+        rows: [...state.activeProject.rows, newRow]
+      };
+      // Keep localStorage in sync
+      const updatedProjects = state.projects.map((p) => p.id === updatedProject.id ? updatedProject : p);
+      saveToLocalStorage(updatedProjects);
+      return { activeProject: updatedProject, projects: updatedProjects, activeRowId: newRow.id };
+    });
+  },
+
+  deleteRow: (rowId) => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      const updatedRows = state.activeProject.rows
+        .filter(row => row.id !== rowId)
+        .map((row, index) => ({
+          ...row,
+          srNo: (index + 1).toString().padStart(2, '0')
+        }));
+      const updatedProject = { ...state.activeProject, rows: updatedRows };
+      const updatedProjects = state.projects.map((p) => p.id === updatedProject.id ? updatedProject : p);
+      saveToLocalStorage(updatedProjects);
+      
+      return { 
+        activeProject: updatedProject, 
+        projects: updatedProjects,
+        activeRowId: state.activeRowId === rowId ? null : state.activeRowId
+      };
+    });
+  },
+
+  deleteAllRows: () => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      const updatedProject = { ...state.activeProject, rows: [] };
+      const updatedProjects = state.projects.map((p) => p.id === updatedProject.id ? updatedProject : p);
+      saveToLocalStorage(updatedProjects);
+      return { 
+        activeProject: updatedProject, 
+        projects: updatedProjects,
+        activeRowId: null
+      };
+    });
+  },
+
+  updateRow: (rowId, field, value) => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      
+      const updatedRows = state.activeProject.rows.map((row) => {
+        if (row.id !== rowId) return row;
+        
+        let updatedRow = { ...row, [field]: value };
+        
+        // If drawing size or tolerance values change, recalculate the tolerance string
+        if (field === 'drawingSize' || field === 'toleranceVal') {
+           updatedRow.calculatedTolerance = calculateTolerance(
+             updatedRow.drawingSize, 
+             updatedRow.toleranceVal
+           );
+        }
+        
+        return updatedRow;
+      });
+
+      const updatedProject = { ...state.activeProject, rows: updatedRows };
+      const updatedProjects = state.projects.map((p) => p.id === updatedProject.id ? updatedProject : p);
+      saveToLocalStorage(updatedProjects);
+
+      return { activeProject: updatedProject, projects: updatedProjects };
+    });
+  },
+
+  updateObservation: (rowId, index, value) => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      const updatedRows = state.activeProject.rows.map((row) => {
+        if (row.id !== rowId) return row;
+        const newObs = [...row.observations];
+        newObs[index] = value;
+        return { ...row, observations: newObs };
+      });
+      const updatedProject = { ...state.activeProject, rows: updatedRows };
+      return { activeProject: updatedProject };
+    });
+  },
+
+  addObservationColumn: () => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      const updatedRows = state.activeProject.rows.map(row => ({
+        ...row,
+        observations: [...row.observations, '']
+      }));
+      const updatedProject = { ...state.activeProject, rows: updatedRows };
+      return { activeProject: updatedProject };
+    });
+  },
+  
+  removeObservationColumn: () => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      const updatedRows = state.activeProject.rows.map(row => ({
+        ...row,
+        observations: row.observations.length > 1 ? row.observations.slice(0, -1) : row.observations
+      }));
+      const updatedProject = { ...state.activeProject, rows: updatedRows };
+      return { activeProject: updatedProject };
+    });
+  }
+
+}));

@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+/* Hide all scrollbars globally */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* For Firefox / IE */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

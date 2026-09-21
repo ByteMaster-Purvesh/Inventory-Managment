@@ -15,7 +15,9 @@ export const useReportStore = create((set, get) => ({
   projects: loadFromLocalStorage(),
   activeProject: null,
   activeRowId: null,
+  activeInputTab: 'Home',
 
+  setActiveInputTab: (tab) => set({ activeInputTab: tab }),
   setActiveRow: (id) => set({ activeRowId: id }),
 
   createProject: (projectName, customer, componentsName) => {

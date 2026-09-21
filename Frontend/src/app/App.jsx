@@ -5,9 +5,9 @@ import './App.css';
 
 const App = () => {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
+    <div className="h-screen flex flex-col bg-slate-50 text-slate-900">
       <Navbar />
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col overflow-hidden">
         <Outlet />
       </main>
     </div>

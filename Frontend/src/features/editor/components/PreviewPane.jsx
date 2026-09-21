@@ -1,8 +1,55 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useReportStore } from '../../../store/useReportStore';
 import { checkIsOutOfTolerance } from '../../../lib/calculations';
-import { ZoomIn, ZoomOut, Maximize, Trash2, Copy, FlipHorizontal, Files, Hand, MousePointer2, ChevronUp, ChevronDown, RotateCw } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize, Trash2, Copy, FlipHorizontal, Files, Hand, MousePointer2, ChevronUp, ChevronDown, RotateCw, Download, Share2 } from "lucide-react";
 import { Rnd } from "react-rnd";
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { ReportPDF } from './pdf/ReportPDF';
+
+const InteractiveField = ({ tabName, fieldId, children, className = "p-1" }) => {
+  const setActiveInputTab = useReportStore((state) => state.setActiveInputTab);
+  const handleClick = (e) => {
+    e.stopPropagation();
+    setActiveInputTab(tabName);
+    setTimeout(() => {
+      const element = document.getElementById(fieldId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.focus();
+      }
+    }, 100);
+  };
+  return (
+    <div 
+      className={`${className} cursor-pointer hover:bg-orange-500/20 hover:outline hover:outline-1 hover:outline-orange-500 transition-all`}
+      onClick={handleClick}
+    >
+      {children}
+    </div>
+  );
+};
+
+const InteractiveRow = ({ row, children, className }) => {
+  const setActiveInputTab = useReportStore((state) => state.setActiveInputTab);
+  const handleClick = (e) => {
+    e.stopPropagation();
+    setActiveInputTab('Data');
+    setTimeout(() => {
+      const element = document.getElementById(`input-row-${row.id}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  };
+  return (
+    <tr 
+      className={`${className || ''} cursor-pointer hover:bg-orange-500/20 transition-colors`}
+      onClick={handleClick}
+    >
+      {children}
+    </tr>
+  );
+};
 
 export const PreviewPane = () => {
   const activeProject = useReportStore((state) => state.activeProject);
@@ -294,8 +341,116 @@ export const PreviewPane = () => {
   return (
     <>
       <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+      <div className="flex flex-col w-full h-full bg-[#1e1e1e]">
+        {/* Header Bar */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-[#2b2b2b] shrink-0 bg-[#1e1e1e]">
+          <div className="text-sm font-semibold text-zinc-300">Preview</div>
+          
+          {/* Toolbar Items (Horizontal) */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md p-1">
+              <button 
+                onClick={() => scrollToPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+                className={`p-1 rounded transition-colors ${currentPage <= 1 ? 'text-zinc-600' : 'hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100'}`} 
+                title="Previous Page"
+              >
+                <ChevronUp size={16} />
+              </button>
+              <div className="flex items-center gap-1 px-1">
+                <input 
+                  value={pageInputValue}
+                  onChange={(e) => setPageInputValue(e.target.value)}
+                  onBlur={(e) => {
+                    let p = parseInt(e.target.value);
+                    if (isNaN(p) || p < 1) p = 1;
+                    setPageInputValue(p.toString());
+                    scrollToPage(p);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.target.blur();
+                  }}
+                  className="w-8 px-1 py-0.5 bg-zinc-950 rounded border border-zinc-700 text-[11px] text-center text-zinc-100 outline-none focus:border-orange-500 transition-colors"
+                />
+                <span className="text-[11px] text-zinc-400 font-medium">/ {pages.length}</span>
+              </div>
+              <button 
+                onClick={() => scrollToPage(currentPage + 1)}
+                disabled={currentPage >= pages.length}
+                className={`p-1 rounded transition-colors ${currentPage >= pages.length ? 'text-zinc-600' : 'hover:bg-zinc-800 text-zinc-300 hover:text-zinc-100'}`} 
+                title="Next Page"
+              >
+                <ChevronDown size={16} />
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-zinc-700 mx-1"></div>
+
+            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md p-1">
+              <button className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-300 hover:text-zinc-100" title="Rotate">
+                <RotateCw size={16} />
+              </button>
+              <button onClick={() => setZoomScale(1)} className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-300 hover:text-zinc-100" title="Fit to Page">
+                <Maximize size={16} />
+              </button>
+              <div className="w-px h-3 bg-zinc-700 mx-1"></div>
+              <button onClick={() => setZoomScale(p => Math.max(0.3, p - 0.1))} className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-300 hover:text-zinc-100" title="Zoom Out">
+                <ZoomOut size={16} />
+              </button>
+              <div className="text-[10px] font-mono text-zinc-400 w-10 text-center">{Math.round(zoomScale * 100)}%</div>
+              <button onClick={() => setZoomScale(p => Math.min(2.5, p + 0.1))} className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-300 hover:text-zinc-100" title="Zoom In">
+                <ZoomIn size={16} />
+              </button>
+            </div>
+
+            <div className="h-4 w-px bg-zinc-700 mx-1"></div>
+
+            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md p-1">
+              <button 
+                onClick={() => setActiveTool('select')} 
+                className={`p-1 rounded transition-colors ${activeTool === 'select' ? 'bg-orange-600 text-zinc-100' : 'hover:bg-zinc-800 text-zinc-300'}`} 
+                title="Select Tool"
+              >
+                <MousePointer2 size={16} />
+              </button>
+              <button 
+                onClick={() => setActiveTool('pan')} 
+                className={`p-1 rounded transition-colors ${activeTool === 'pan' ? 'bg-orange-600 text-zinc-100' : 'hover:bg-zinc-800 text-zinc-300'}`} 
+                title="Pan Tool"
+              >
+                <Hand size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex gap-4 text-[10px] text-green-500 font-mono">
+              <span>Status: 200 OK</span>
+              <span className="text-zinc-400">Time: <span className="text-green-500">23ms</span></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-3 py-1.5 rounded text-sm font-medium border border-[#2b2b2b] hover:bg-[#2b2b2b] transition-colors">
+                <Share2 size={16} />
+                Share
+              </button>
+              <PDFDownloadLink 
+                document={<ReportPDF project={activeProject} />} 
+                fileName={`${activeProject.projectName?.replace(/\s+/g, '_')}_Inspection_Report.pdf`}
+                className="flex items-center gap-2 bg-[#007acc] hover:bg-[#005999] text-white px-6 py-1.5 rounded text-sm font-medium transition-colors"
+              >
+                {({ loading }) => (
+                  <>
+                    <Download size={16} />
+                    {loading ? 'Exporting...' : 'Export PDF'}
+                  </>
+                )}
+              </PDFDownloadLink>
+            </div>
+          </div>
+        </div>
+
       <div 
-        className={`relative flex flex-col h-full w-full bg-slate-200 overflow-auto hide-scrollbar ${activeTool === 'pan' ? `select-none ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}` : ''}`} 
+        className={`relative flex flex-col flex-1 w-full bg-slate-200 overflow-auto hide-scrollbar ${activeTool === 'pan' ? `select-none ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}` : ''}`} 
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         ref={containerRef} 
         onMouseDown={handleMouseDown}
@@ -304,81 +459,6 @@ export const PreviewPane = () => {
         onMouseLeave={handleMouseUpOrLeave}
         onScroll={handleScroll}
       >
-      {/* Vertical Toolbar Overlay */}
-      <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
-        <div className="flex flex-col items-center gap-2 bg-slate-800/95 backdrop-blur-sm text-slate-200 p-2 rounded-xl shadow-2xl border border-slate-700/50 pointer-events-auto">
-          {/* Page Info */}
-          <div className="flex flex-col items-center gap-1 mb-1">
-            <input 
-              value={pageInputValue}
-              onChange={(e) => setPageInputValue(e.target.value)}
-              onBlur={(e) => {
-                let p = parseInt(e.target.value);
-                if (isNaN(p) || p < 1) p = 1;
-                setPageInputValue(p.toString());
-                scrollToPage(p);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') e.target.blur();
-              }}
-              className="w-8 px-1 py-1 bg-slate-900 rounded border border-slate-700 text-xs text-center text-white outline-none focus:border-blue-500 transition-colors"
-            />
-            <div className="text-[11px] text-slate-400 font-medium">{pages.length}</div>
-          </div>
-          
-          <button 
-            onClick={() => scrollToPage(currentPage - 1)}
-            disabled={currentPage <= 1}
-            className={`p-2 rounded-lg transition-colors ${currentPage <= 1 ? 'text-slate-600' : 'hover:bg-slate-700 text-slate-300 hover:text-white'}`} 
-            title="Previous Page"
-          >
-            <ChevronUp size={20} />
-          </button>
-          <button 
-            onClick={() => scrollToPage(currentPage + 1)}
-            disabled={currentPage >= pages.length}
-            className={`p-2 rounded-lg transition-colors ${currentPage >= pages.length ? 'text-slate-600' : 'hover:bg-slate-700 text-slate-300 hover:text-white'}`} 
-            title="Next Page"
-          >
-            <ChevronDown size={20} />
-          </button>
-          
-          <div className="w-8 h-px bg-slate-700/80 my-1"></div>
-          
-          <button className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-300 hover:text-white" title="Rotate">
-            <RotateCw size={18} />
-          </button>
-          <button onClick={() => setZoomScale(1)} className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-300 hover:text-white" title="Fit to Page">
-            <Maximize size={18} />
-          </button>
-          
-          <button onClick={() => setZoomScale(p => Math.min(2.5, p + 0.1))} className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-300 hover:text-white" title="Zoom In">
-            <ZoomIn size={18} />
-          </button>
-          <button onClick={() => setZoomScale(p => Math.max(0.3, p - 0.1))} className="p-2 hover:bg-slate-700 rounded-lg transition-colors text-slate-300 hover:text-white" title="Zoom Out">
-            <ZoomOut size={18} />
-          </button>
-          
-          <div className="text-[10px] font-medium text-slate-400 mb-1">{Math.round(zoomScale * 100)}%</div>
-          
-          <div className="w-8 h-px bg-slate-700/80 my-1"></div>
-
-          <button 
-            onClick={() => setActiveTool('select')} 
-            className={`p-2 rounded-lg transition-colors ${activeTool === 'select' ? 'bg-blue-600 text-white' : 'hover:bg-slate-700 text-slate-300'}`} 
-            title="Select Tool"
-          >
-            <MousePointer2 size={18} />
-          </button>
-          <button 
-            onClick={() => setActiveTool('pan')} 
-            className={`p-2 rounded-lg transition-colors ${activeTool === 'pan' ? 'bg-blue-600 text-white' : 'hover:bg-slate-700 text-slate-300'}`} 
-            title="Pan Tool"
-          >
-            <Hand size={18} />
-          </button>
-        </div>
-      </div>
 
       <div 
         className="shrink-0"
@@ -408,7 +488,7 @@ export const PreviewPane = () => {
                   {/* Row 1: Logo and Title */}
                   <div className="flex border-b border-black">
                     <div 
-                      className={`w-1/2 p-2 border-r border-black flex items-center justify-center transition-colors relative overflow-hidden ${isDraggingOverLogo ? 'bg-blue-100/50' : ''}`}
+                      className={`w-1/2 p-2 border-r border-black flex items-center justify-center transition-colors relative overflow-hidden ${isDraggingOverLogo ? 'bg-orange-500/20' : ''}`}
                       onDragOver={handleDragOverLogo}
                       onDragLeave={handleDragLeaveLogo}
                       onDrop={handleDropLogo}
@@ -459,36 +539,36 @@ export const PreviewPane = () => {
                     {/* Left Column */}
                     <div className="flex flex-col divide-y divide-black">
                       <div className="grid grid-cols-[65%_35%] divide-x divide-black">
-                        <div className="p-1">Project: <span className="font-bold">{activeProject.projectName}</span></div>
-                        <div className="p-1">Project no: {activeProject.projectNo}</div>
+                        <InteractiveField tabName="Form" fieldId="input-field-projectName">Project: <span className="font-bold">{activeProject.projectName}</span></InteractiveField>
+                        <InteractiveField tabName="Form" fieldId="input-field-projectNo">Project no: {activeProject.projectNo}</InteractiveField>
                       </div>
-                      <div className="p-1">Production order no.: {activeProject.productionOrderNo}</div>
-                      <div className="p-1">Customer: <span className="font-bold">{activeProject.customer}</span></div>
-                      <div className="p-1">Assly / sub-assly: {activeProject.asslySubAssly}</div>
-                      <div className="p-1">Inspection stage: {activeProject.inspectionStage}</div>
-                      <div className="p-1">Raw material used: {activeProject.rawMaterialUsed}</div>
-                      <div className="p-1">Raw mtrl. Idn/Ctrl. No: {activeProject.rawMtrlIdnCtrlNo}</div>
-                      <div className="p-1">Raw mtrl. In Drg. {activeProject.rawMtrlInDrg}</div>
-                      <div className="p-1">R .V. no: {activeProject.rvNo}</div>
+                      <InteractiveField tabName="Form" fieldId="input-field-productionOrderNo">Production order no.: {activeProject.productionOrderNo}</InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-customer">Customer: <span className="font-bold">{activeProject.customer}</span></InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-asslySubAssly">Assly / sub-assly: {activeProject.asslySubAssly}</InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-inspectionStage">Inspection stage: {activeProject.inspectionStage}</InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-rawMaterialUsed">Raw material used: {activeProject.rawMaterialUsed}</InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-rawMtrlIdnCtrlNo">Raw mtrl. Idn/Ctrl. No: {activeProject.rawMtrlIdnCtrlNo}</InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-rawMtrlInDrg">Raw mtrl. In Drg. {activeProject.rawMtrlInDrg}</InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-rvNo">R .V. no: {activeProject.rvNo}</InteractiveField>
                     </div>
                     
                     {/* Right Column */}
                     <div className="flex flex-col divide-y divide-black">
                       <div className="grid grid-cols-2 divide-x divide-black">
-                        <div className="p-1">Date: {activeProject.date}</div>
+                        <InteractiveField tabName="Form" fieldId="input-field-date">Date: {activeProject.date}</InteractiveField>
                         <div className="p-1">Page no.: {pageIndex + 1} of {pages.length}</div>
                       </div>
-                      <div className="p-1">Components name: <span className="font-bold">{activeProject.componentsName}</span></div>
+                      <InteractiveField tabName="Form" fieldId="input-field-componentsName">Components name: <span className="font-bold">{activeProject.componentsName}</span></InteractiveField>
                       <div className="grid grid-cols-[65%_35%] divide-x divide-black">
-                        <div className="p-1 px-2 whitespace-nowrap">Drg. No: {activeProject.drgNo}</div>
-                        <div className="p-1 px-2 whitespace-nowrap">Rev No.: {activeProject.revNo}</div>
+                        <InteractiveField tabName="Form" fieldId="input-field-drgNo" className="p-1 px-2 whitespace-nowrap">Drg. No: {activeProject.drgNo}</InteractiveField>
+                        <InteractiveField tabName="Form" fieldId="input-field-revNo" className="p-1 px-2 whitespace-nowrap">Rev No.: {activeProject.revNo}</InteractiveField>
                       </div>
-                      <div className="p-1">Inspection report no: {activeProject.inspectionReportNo}</div>
-                      <div className="p-1">QA Plan No: {activeProject.qaPlanNo}</div>
-                      <div className="p-1">P. O. No: {activeProject.poNo}</div>
-                      <div className="p-1">Quantity: {activeProject.quantity}</div>
-                      <div className="p-1">Identification nos.: {activeProject.identificationNos}</div>
-                      <div className="p-1">Supplier Name: {activeProject.supplierName || 'PRECITECH ENGINEERING WORKS'}</div>
+                      <InteractiveField tabName="Form" fieldId="input-field-inspectionReportNo">Inspection report no: {activeProject.inspectionReportNo}</InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-qaPlanNo">QA Plan No: {activeProject.qaPlanNo}</InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-poNo">P. O. No: {activeProject.poNo}</InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-quantity">Quantity: {activeProject.quantity}</InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-identificationNos">Identification nos.: {activeProject.identificationNos}</InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-supplierName">Supplier Name: {activeProject.supplierName || 'PRECITECH ENGINEERING WORKS'}</InteractiveField>
                     </div>
                   </div>
                 </div>
@@ -497,7 +577,7 @@ export const PreviewPane = () => {
                   {/* Row 1: Logo and Title */}
                   <div className="flex border-b border-black">
                     <div 
-                      className={`w-1/3 p-2 border-r border-black flex items-center justify-center transition-colors relative overflow-hidden ${isDraggingOverLogo ? 'bg-blue-100/50' : ''}`}
+                      className={`w-1/3 p-2 border-r border-black flex items-center justify-center transition-colors relative overflow-hidden ${isDraggingOverLogo ? 'bg-orange-500/20' : ''}`}
                       onDragOver={handleDragOverLogo}
                       onDragLeave={handleDragLeaveLogo}
                       onDrop={handleDropLogo}
@@ -533,14 +613,14 @@ export const PreviewPane = () => {
                   </div>
                   {/* Simplified Metadata */}
                   <div className="grid grid-cols-3 divide-x divide-black border-b border-black">
-                    <div className="p-1">Project: <span className="font-bold">{activeProject.projectName}</span></div>
-                    <div className="p-1">Date: {activeProject.date}</div>
+                    <InteractiveField tabName="Form" fieldId="input-field-projectName">Project: <span className="font-bold">{activeProject.projectName}</span></InteractiveField>
+                    <InteractiveField tabName="Form" fieldId="input-field-date">Date: {activeProject.date}</InteractiveField>
                     <div className="p-1">Page no.: {pageIndex + 1} of {pages.length}</div>
                   </div>
                   <div className="grid grid-cols-[1fr_auto_auto] divide-x divide-black">
-                    <div className="p-1">Comp name: {activeProject.componentsName}</div>
-                    <div className="p-1 px-2">Drg. No: {activeProject.drgNo}</div>
-                    <div className="p-1 px-2">Rev No.: {activeProject.revNo}</div>
+                    <InteractiveField tabName="Form" fieldId="input-field-componentsName">Comp name: {activeProject.componentsName}</InteractiveField>
+                    <InteractiveField tabName="Form" fieldId="input-field-drgNo" className="p-1 px-2">Drg. No: {activeProject.drgNo}</InteractiveField>
+                    <InteractiveField tabName="Form" fieldId="input-field-revNo" className="p-1 px-2">Rev No.: {activeProject.revNo}</InteractiveField>
                   </div>
                 </div>
               )}
@@ -567,7 +647,7 @@ export const PreviewPane = () => {
                 </thead>
                 <tbody>
                   {pageRows.map((row) => (
-                    <tr key={row.id}>
+                    <InteractiveRow key={row.id} row={row}>
                       <td className="border border-black p-1">{row.srNo}</td>
                       <td className="border border-black p-1 break-words">
                         {row.drawingSizeSymbol} {row.drawingSize}
@@ -588,7 +668,7 @@ export const PreviewPane = () => {
 
                       <td className="border border-black p-1">{row.instrument || '-'}</td>
                       <td className="border border-black p-1">{row.instrumentNo || ''}</td>
-                    </tr>
+                    </InteractiveRow>
                   ))}
                   {/* Empty rows to fill the page */}
                   {Array.from({ length: Math.max(0, ROWS_PER_PAGE - pageRows.length) }).map((_, i) => (
@@ -618,7 +698,7 @@ export const PreviewPane = () => {
                 <div className="grid grid-cols-[1.2fr_1fr_1fr] h-[150px]">
                   {/* Column 1 */}
                   <div 
-                    className={`border-r border-black relative flex flex-col ${isDraggingOverStamp ? 'bg-blue-100/50' : ''}`}
+                    className={`border-r border-black relative flex flex-col ${isDraggingOverStamp ? 'bg-orange-500/20' : ''}`}
                     onDragOver={handleDragOverStamp}
                     onDragLeave={handleDragLeaveStamp}
                     onDrop={handleDropStamp}
@@ -673,7 +753,7 @@ export const PreviewPane = () => {
                     </div>
                     {/* Bottom row of col 2 & 3 */}
                     <div 
-                      className={`grid grid-cols-[1fr_1fr] flex-1 relative ${isDraggingOverGodrejStamp ? 'bg-blue-100/50' : ''}`}
+                      className={`grid grid-cols-[1fr_1fr] flex-1 relative ${isDraggingOverGodrejStamp ? 'bg-orange-500/20' : ''}`}
                       onDragOver={handleDragOverGodrejStamp}
                       onDragLeave={handleDragLeaveGodrejStamp}
                       onDrop={handleDropGodrejStamp}
@@ -724,6 +804,7 @@ export const PreviewPane = () => {
           ))}
           </div>
         </div>
+      </div>
       </div>
     </>
   );

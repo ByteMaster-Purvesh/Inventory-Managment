@@ -8,13 +8,25 @@ export const calculateTolerance = (drawingSize, toleranceVal) => {
   if (!baseValMatch) return '-';
 
   const base = parseFloat(baseValMatch[0]);
+  const formatVal = (val) => parseFloat(val.toFixed(3));
+
+  let min, max;
+
+  // Handle comma-separated tolerance values (e.g., "-0.005,-0.014")
+  if (typeof toleranceVal === 'string' && toleranceVal.includes(',')) {
+    const parts = toleranceVal.split(',').map(v => parseFloat(v.trim()));
+    if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      const val1 = base + parts[0];
+      const val2 = base + parts[1];
+      min = Math.min(val1, val2);
+      max = Math.max(val1, val2);
+      return `${formatVal(min)}/${formatVal(max)}`;
+    }
+  }
+
   const tol = parseFloat(toleranceVal);
 
   if (isNaN(base) || isNaN(tol)) return '-';
-
-  const formatVal = (val) => parseFloat(val.toFixed(2));
-
-  let min, max;
 
   if (drawingSize.includes('±')) {
     min = base - tol;

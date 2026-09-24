@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useReportStore } from '../../../store/useReportStore';
 import { calculateTolerance } from '../../../lib/calculations';
 import { Trash2, GripVertical, Plus, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon, Settings2, Columns, Copy, Download } from 'lucide-react';
-import { PDFDownloadLink } from '@react-pdf/renderer';
+import { pdf } from '@react-pdf/renderer';
 import { ReportPDF } from './pdf/ReportPDF';
 
 const SYMBOLS = ['±', '+', '-', 'Ø', '°', '▼', '⊥', 'X', '▱', '⌯', '∥', '$'];
@@ -74,6 +74,7 @@ export const InputPane = () => {
   const setActiveTab = useReportStore((state) => state.setActiveInputTab);
   const fileInputRef = useRef(null);
   const [draggedRowIndex, setDraggedRowIndex] = useState(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   const activeProject = useReportStore((state) => state.activeProject);
   const activeRowId = useReportStore((state) => state.activeRowId);
@@ -113,6 +114,25 @@ export const InputPane = () => {
     }
   };
 
+  const handleDownloadPDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      const blob = await pdf(<ReportPDF project={activeProject} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${activeProject.projectName?.replace(/\s+/g, '_') || 'Inspection'}_Report.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 bg-zinc-900 border-b border-zinc-800 flex justify-between items-center shrink-0">
@@ -128,18 +148,14 @@ export const InputPane = () => {
             <Plus size={16} />
             Add Row
           </button>
-          <PDFDownloadLink 
-            document={<ReportPDF project={activeProject} />} 
-            fileName={`${activeProject.projectName?.replace(/\s+/g, '_')}_Inspection_Report.pdf`}
-            className="flex items-center gap-1 bg-[#007acc] hover:bg-[#005999] text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
+          <button 
+            onClick={handleDownloadPDF}
+            disabled={isGeneratingPDF}
+            className={`flex items-center justify-center gap-1 bg-[#007acc] hover:bg-[#005999] text-white px-3 py-1.5 rounded text-sm font-medium transition-colors w-[145px] ${isGeneratingPDF ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
-            {({ loading }) => (
-              <>
-                <Download size={16} />
-                {loading ? 'Converting...' : 'Convert into PDF'}
-              </>
-            )}
-          </PDFDownloadLink>
+            <Download size={16} />
+            {isGeneratingPDF ? 'Converting...' : 'Convert into PDF'}
+          </button>
         </div>
       </div>
 

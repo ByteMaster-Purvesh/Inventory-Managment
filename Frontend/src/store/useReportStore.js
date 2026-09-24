@@ -3,7 +3,12 @@ import { calculateTolerance } from '../lib/calculations';
 
 // Mock DB (localStorage)
 const saveToLocalStorage = (projects) => {
-  localStorage.setItem('projects', JSON.stringify(projects));
+  try {
+    localStorage.setItem('projects', JSON.stringify(projects));
+  } catch (error) {
+    console.error('Failed to save projects to localStorage. This is likely due to images being too large:', error);
+    alert('Failed to save your changes. Your images might be too large. Try uploading smaller images.');
+  }
 };
 
 const loadFromLocalStorage = () => {
@@ -46,6 +51,8 @@ export const useReportStore = create((set, get) => ({
       remarks: '',
       designerRemarks: '',
       supplierStampUrl: null,
+      godrejStampUrl: null,
+      godrejStampUrl2: null,
       rows: [], // Holds the tabular data
       settings: {
         fontFamily: 'Helvetica',
@@ -56,6 +63,8 @@ export const useReportStore = create((set, get) => ({
         logoUrl: null, // Base64 image
         logoTransform: { width: 150, height: 48, x: 0, y: 0 },
         stampTransform: { width: 120, height: 120, x: 0, y: 0 },
+        godrejStampTransform: { width: 120, height: 120, x: 0, y: 0 },
+        godrejStampTransform2: { width: 120, height: 120, x: 0, y: 0 },
       },
     };
     
@@ -92,7 +101,9 @@ export const useReportStore = create((set, get) => ({
       const currentSettings = state.activeProject.settings || {
         fontFamily: 'Helvetica', fontSize: 11, isBold: false, isItalic: false, textAlign: 'left', logoUrl: null,
         logoTransform: { width: 150, height: 48, x: 0, y: 0 },
-        stampTransform: { width: 120, height: 120, x: 0, y: 0 }
+        stampTransform: { width: 120, height: 120, x: 0, y: 0 },
+        godrejStampTransform: { width: 120, height: 120, x: 0, y: 0 },
+        godrejStampTransform2: { width: 120, height: 120, x: 0, y: 0 }
       };
       const updatedSettings = { ...currentSettings, [field]: value };
       const updatedProject = { ...state.activeProject, settings: updatedSettings };

@@ -115,6 +115,40 @@ export const useReportStore = create((set, get) => ({
     });
   },
 
+  deleteProjectGroup: (projectName) => {
+    set((state) => {
+      const updatedProjects = state.projects.filter(p => p.projectName !== projectName);
+      saveToLocalStorage(updatedProjects);
+      
+      // If active project is deleted, set active to the first available or null
+      let newActive = state.activeProject;
+      if (state.activeProject && state.activeProject.projectName === projectName) {
+        newActive = updatedProjects.length > 0 ? updatedProjects[0] : null;
+      }
+      
+      return { projects: updatedProjects, activeProject: newActive };
+    });
+  },
+
+  renameProjectGroup: (oldName, newName) => {
+    set((state) => {
+      const updatedProjects = state.projects.map((p) => {
+        if (p.projectName === oldName) {
+          return { ...p, projectName: newName };
+        }
+        return p;
+      });
+      saveToLocalStorage(updatedProjects);
+      
+      let newActive = state.activeProject;
+      if (state.activeProject && state.activeProject.projectName === oldName) {
+        newActive = { ...state.activeProject, projectName: newName };
+      }
+      
+      return { projects: updatedProjects, activeProject: newActive };
+    });
+  },
+
   addRow: () => {
     set((state) => {
       if (!state.activeProject) return state;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReportStore } from '../../store/useReportStore';
-import { PlusCircle, FileText, Clock } from 'lucide-react';
+import { PlusCircle, FileText, Clock, Folder } from 'lucide-react';
 
 export const Dashboard = () => {
   const [projectName, setProjectName] = useState('');
@@ -68,30 +68,51 @@ export const Dashboard = () => {
         </form>
       </div>
 
-      {/* Recent Projects Section */}
+      {/* Projects Section */}
       <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
         <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
-          <Clock className="text-slate-500" />
-          Recent Projects
+          <Folder className="text-slate-500" />
+          All Projects
         </h2>
         <div className="space-y-3">
           {projects.length === 0 ? (
-            <p className="text-slate-500 italic">No recent projects found.</p>
+            <p className="text-slate-500 italic">No projects found.</p>
           ) : (
-            projects.map((project) => (
-              <button
-                key={project.id}
-                onClick={() => navigate(`/editor/${project.id}`)}
-                className="w-full text-left p-4 rounded-lg border border-slate-200 hover:border-blue-500 hover:bg-blue-50 flex items-start gap-4 transition-all"
-              >
-                <FileText className="text-slate-400 mt-1 flex-shrink-0" />
-                <div>
-                  <h3 className="font-medium text-slate-900">{project.projectName}</h3>
-                  <p className="text-sm text-slate-500">
-                    {project.customer} • {project.date}
-                  </p>
+            Object.entries(
+              projects.reduce((acc, project) => {
+                if (!acc[project.projectName]) {
+                  acc[project.projectName] = [];
+                }
+                acc[project.projectName].push(project);
+                return acc;
+              }, {})
+            ).map(([folderName, groupProjects]) => (
+              <div key={folderName} className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+                <div className="bg-slate-50 p-4 border-b border-slate-200 flex items-center gap-3">
+                  <Folder className="text-blue-500 flex-shrink-0" size={20} />
+                  <div>
+                    <h3 className="font-semibold text-slate-900">{folderName}</h3>
+                    <p className="text-xs text-slate-500">{groupProjects[0].customer || 'No Customer'}</p>
+                  </div>
                 </div>
-              </button>
+                <div className="divide-y divide-slate-100">
+                  {groupProjects.map((component) => (
+                    <button
+                      key={component.id}
+                      onClick={() => navigate(`/editor/${component.id}`)}
+                      className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center justify-between group transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <FileText className="text-slate-400 group-hover:text-blue-500 flex-shrink-0" size={16} />
+                        <span className="text-sm font-medium text-slate-700 group-hover:text-blue-700">
+                          {component.componentsName || 'Unnamed Component'}
+                        </span>
+                      </div>
+                      <span className="text-xs text-slate-400">{component.date}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))
           )}
         </div>

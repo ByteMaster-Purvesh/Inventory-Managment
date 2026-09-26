@@ -224,7 +224,7 @@ export const ReportPDF = ({ project }) => {
             {pageRows.map(row => (
               <View key={row.id} style={styles.tableRow}>
                 <View style={[styles.td, styles.colSrNo]}><Text>{row.srNo}</Text></View>
-                <View style={[styles.td, styles.colDrawing]}><Text>{row.drawingSizeSymbol} {row.drawingSize}</Text></View>
+                <View style={[styles.td, styles.colDrawing]}><Text>{row.places ? `${row.places} X ` : ''}{row.drawingSizeSymbol ? `${row.drawingSizeSymbol} ` : ''}{row.drawingSize}</Text></View>
                 <View style={[styles.td, styles.colTol]}><Text>{row.calculatedTolerance !== '-' ? row.calculatedTolerance : row.toleranceVal || '-'}</Text></View>
                 {row.observations.map((obs, idx) => {
                   const isOutOfTol = checkIsOutOfTolerance(row.calculatedTolerance, obs);

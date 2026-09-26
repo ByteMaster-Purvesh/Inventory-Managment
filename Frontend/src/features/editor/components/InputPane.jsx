@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useReportStore } from '../../../store/useReportStore';
 import { calculateTolerance } from '../../../lib/calculations';
-import { Trash2, GripVertical, Plus, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon, Settings2, Columns, Copy, Download } from 'lucide-react';
+import { Trash2, GripVertical, Plus, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon, Settings2, Columns, Copy, Download, Eye } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { ReportPDF } from './pdf/ReportPDF';
 
@@ -69,7 +69,7 @@ const InstrumentCombobox = ({ value, onChange }) => {
   );
 };
 
-export const InputPane = () => {
+export const InputPane = ({ onLivePreviewClick }) => {
   const activeTab = useReportStore((state) => state.activeInputTab);
   const setActiveTab = useReportStore((state) => state.setActiveInputTab);
   const fileInputRef = useRef(null);
@@ -114,22 +114,14 @@ export const InputPane = () => {
     }
   };
 
-  const handleDownloadPDF = async () => {
-    setIsGeneratingPDF(true);
-    try {
-      const blob = await pdf(<ReportPDF project={activeProject} />).toBlob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${activeProject.projectName?.replace(/\s+/g, '_') || 'Inspection'}_Report.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-    } finally {
-      setIsGeneratingPDF(false);
+  const handleLivePreview = () => {
+    if (onLivePreviewClick) {
+      onLivePreviewClick();
+    } else {
+      const previewPane = document.getElementById('preview-pane-section');
+      if (previewPane) {
+        previewPane.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
   };
 
@@ -149,12 +141,11 @@ export const InputPane = () => {
             Add Row
           </button>
           <button 
-            onClick={handleDownloadPDF}
-            disabled={isGeneratingPDF}
-            className={`flex items-center justify-center gap-1 bg-[#007acc] hover:bg-[#005999] text-white px-3 py-1.5 rounded text-sm font-medium transition-colors w-[145px] ${isGeneratingPDF ? 'opacity-70 cursor-not-allowed' : ''}`}
+            onClick={handleLivePreview}
+            className={`flex items-center justify-center gap-2 bg-[#007acc] hover:bg-[#005999] text-white px-3 py-1.5 rounded text-sm font-medium transition-colors w-[145px]`}
           >
-            <Download size={16} />
-            {isGeneratingPDF ? 'Converting...' : 'Convert into PDF'}
+            <Eye size={16} />
+            Live Preview
           </button>
         </div>
       </div>
@@ -246,11 +237,15 @@ export const InputPane = () => {
                   {SYMBOLS.map(sym => (
                     <button
                       key={sym}
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
                         if (activeRowId) {
                           const row = activeProject.rows.find(r => r.id === activeRowId);
                           if (row) {
                             updateRow(activeRowId, 'drawingSize', (row.drawingSize || '') + ' ' + sym + ' ');
+                            setTimeout(() => {
+                              document.getElementById(`drawing-size-${activeRowId}`)?.focus();
+                            }, 0);
                           }
                         }
                       }}
@@ -425,17 +420,18 @@ export const InputPane = () => {
                 </button>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {/* Drawing Size */}
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-zinc-400">DRAWING SIZE</label>
                   <div className="flex">
                     <input
+                      id={`drawing-size-${row.id}`}
                       type="text"
                       value={row.drawingSize}
                       onChange={(e) => updateRow(row.id, 'drawingSize', e.target.value)}
                       placeholder="e.g. ± 30"
-                      className="flex-1 border border-zinc-700 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500"
+                      className="flex-1 border border-zinc-700 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-transparent text-zinc-200"
                     />
                   </div>
                 </div>
@@ -448,11 +444,26 @@ export const InputPane = () => {
                     value={row.toleranceVal}
                     onChange={(e) => updateRow(row.id, 'toleranceVal', e.target.value)}
                     placeholder="e.g. 0.2"
-                    className="w-full border border-zinc-700 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500"
+                    className="w-full border border-zinc-700 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-transparent text-zinc-200"
                   />
                   <div className="text-[10px] text-zinc-500 text-right mt-1">
                     Calc: {row.calculatedTolerance || '-'}
                   </div>
+                </div>
+
+                {/* Places */}
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-zinc-400">PLACES</label>
+                  <input
+                    type="text"
+                    value={row.places || ''}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      updateRow(row.id, 'places', val);
+                    }}
+                    placeholder="e.g. 1"
+                    className="w-full border border-zinc-700 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-transparent text-zinc-200"
+                  />
                 </div>
 
                 {/* Instrument */}

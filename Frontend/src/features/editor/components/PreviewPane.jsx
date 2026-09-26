@@ -139,6 +139,18 @@ export const PreviewPane = () => {
     }
   };
 
+  const handleFullScreen = () => {
+    if (containerRef.current) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        containerRef.current.requestFullscreen().catch(err => {
+          console.error(`Error attempting to enable fullscreen mode: ${err.message}`);
+        });
+      }
+    }
+  };
+
   const handleScroll = (e) => {
     const container = containerRef.current;
     if (!container) return;
@@ -423,7 +435,7 @@ export const PreviewPane = () => {
   return (
     <>
       <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
-      <div className="flex flex-col w-full h-full bg-[#1e1e1e]">
+      <div id="preview-pane-section" className="flex flex-col w-full h-full bg-[#1e1e1e]">
         {/* Header Bar */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-[#2b2b2b] shrink-0 bg-[#1e1e1e]">
           <div className="text-sm font-semibold text-zinc-300">Preview</div>
@@ -469,10 +481,10 @@ export const PreviewPane = () => {
             <div className="h-4 w-px bg-zinc-700 mx-1"></div>
 
             <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md p-1">
-              <button className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-300 hover:text-zinc-100" title="Rotate">
+              <button onClick={() => scrollToPage(1)} className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-300 hover:text-zinc-100" title="First Page">
                 <RotateCw size={16} />
               </button>
-              <button onClick={() => setZoomScale(1)} className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-300 hover:text-zinc-100" title="Fit to Page">
+              <button onClick={handleFullScreen} className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-300 hover:text-zinc-100" title="Full Screen">
                 <Maximize size={16} />
               </button>
               <div className="w-px h-3 bg-zinc-700 mx-1"></div>
@@ -506,10 +518,6 @@ export const PreviewPane = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex gap-4 text-[10px] text-green-500 font-mono">
-              <span>Status: 200 OK</span>
-              <span className="text-zinc-400">Time: <span className="text-green-500">23ms</span></span>
-            </div>
             <div className="flex items-center gap-2">
               <button onClick={handleShare} className="flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-3 py-1.5 rounded text-sm font-medium border border-[#2b2b2b] hover:bg-[#2b2b2b] transition-colors">
                 <Share2 size={16} />

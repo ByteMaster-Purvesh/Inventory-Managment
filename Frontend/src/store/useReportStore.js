@@ -69,7 +69,7 @@ export const useReportStore = create((set, get) => ({
     };
     
     set((state) => {
-      const updatedProjects = [newProject, ...state.projects].slice(0, 5); // Keep last 5
+      const updatedProjects = [...state.projects, newProject];
       saveToLocalStorage(updatedProjects);
       return { projects: updatedProjects, activeProject: newProject };
     });
@@ -117,12 +117,13 @@ export const useReportStore = create((set, get) => ({
 
   deleteProjectGroup: (projectName) => {
     set((state) => {
-      const updatedProjects = state.projects.filter(p => p.projectName !== projectName);
+      const updatedProjects = state.projects.filter(p => 
+        !(p.projectName === projectName || p.projectName.startsWith(projectName + '/'))
+      );
       saveToLocalStorage(updatedProjects);
       
-      // If active project is deleted, set active to the first available or null
       let newActive = state.activeProject;
-      if (state.activeProject && state.activeProject.projectName === projectName) {
+      if (state.activeProject && (state.activeProject.projectName === projectName || state.activeProject.projectName.startsWith(projectName + '/'))) {
         newActive = updatedProjects.length > 0 ? updatedProjects[0] : null;
       }
       
@@ -133,18 +134,74 @@ export const useReportStore = create((set, get) => ({
   renameProjectGroup: (oldName, newName) => {
     set((state) => {
       const updatedProjects = state.projects.map((p) => {
-        if (p.projectName === oldName) {
-          return { ...p, projectName: newName };
+        if (p.projectName === oldName || p.projectName.startsWith(oldName + '/')) {
+          const newProjectName = newName + p.projectName.slice(oldName.length);
+          return { ...p, projectName: newProjectName };
         }
         return p;
       });
       saveToLocalStorage(updatedProjects);
       
       let newActive = state.activeProject;
-      if (state.activeProject && state.activeProject.projectName === oldName) {
-        newActive = { ...state.activeProject, projectName: newName };
+      if (state.activeProject && (state.activeProject.projectName === oldName || state.activeProject.projectName.startsWith(oldName + '/'))) {
+        newActive = { ...state.activeProject, projectName: newName + state.activeProject.projectName.slice(oldName.length) };
       }
       
+      return { projects: updatedProjects, activeProject: newActive };
+    });
+  },
+
+  deleteProject: (id) => {
+    set((state) => {
+      const updatedProjects = state.projects.filter(p => p.id !== id);
+      saveToLocalStorage(updatedProjects);
+      
+      let newActive = state.activeProject;
+      if (state.activeProject && state.activeProject.id === id) {
+        newActive = updatedProjects.length > 0 ? updatedProjects[0] : null;
+      }
+      
+      return { projects: updatedProjects, activeProject: newActive };
+    });
+  },
+
+  renameProjectComponent: (id, newName) => {
+    set((state) => {
+      const updatedProjects = state.projects.map((p) => {
+        if (p.id === id) {
+          return { ...p, componentsName: newName };
+        }
+        return p;
+      });
+      saveToLocalStorage(updatedProjects);
+      
+      let newActive = state.activeProject;
+      if (state.activeProject && state.activeProject.id === id) {
+        newActive = { ...state.activeProject, componentsName: newName };
+      }
+      
+      return { projects: updatedProjects, activeProject: newActive };
+    });
+  },
+
+  moveProjectComponent: (id, newProjectName) => {
+    set((state) => {
+      const targetGroup = state.projects.find(p => p.projectName === newProjectName);
+      const newCustomer = targetGroup ? targetGroup.customer : '';
+
+      const updatedProjects = state.projects.map((p) => {
+        if (p.id === id) {
+          return { ...p, projectName: newProjectName, customer: newCustomer };
+        }
+        return p;
+      });
+      saveToLocalStorage(updatedProjects);
+
+      let newActive = state.activeProject;
+      if (state.activeProject && state.activeProject.id === id) {
+        newActive = { ...state.activeProject, projectName: newProjectName, customer: newCustomer };
+      }
+
       return { projects: updatedProjects, activeProject: newActive };
     });
   },
@@ -159,6 +216,7 @@ export const useReportStore = create((set, get) => ({
         drawingSizeSymbol: '', // ±, +, -, %, None
         toleranceVal: '',
         calculatedTolerance: '', // [min, max] or specific string
+        places: '',
         observations: [''], // Array for multiple jobs/components
         instrument: '',
         instrumentNo: ''

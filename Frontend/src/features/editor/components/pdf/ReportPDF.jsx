@@ -71,13 +71,17 @@ export const ReportPDF = ({ project }) => {
   const pages = [];
   let currentIndex = 0;
   
-  if (project.rows.length > 0) {
-    pages.push(project.rows.slice(currentIndex, currentIndex + FIRST_PAGE_ROWS));
+  const validRows = project.rows.filter(row => 
+    row.drawingSize || row.toleranceVal || row.instrument || row.places || row.observations.some(obs => obs && obs.trim() !== '')
+  );
+  
+  if (validRows.length > 0) {
+    pages.push(validRows.slice(currentIndex, currentIndex + FIRST_PAGE_ROWS));
     currentIndex += FIRST_PAGE_ROWS;
   }
   
-  while (currentIndex < project.rows.length) {
-    pages.push(project.rows.slice(currentIndex, currentIndex + OTHER_PAGE_ROWS));
+  while (currentIndex < validRows.length) {
+    pages.push(validRows.slice(currentIndex, currentIndex + OTHER_PAGE_ROWS));
     currentIndex += OTHER_PAGE_ROWS;
   }
   
@@ -224,7 +228,7 @@ export const ReportPDF = ({ project }) => {
             {pageRows.map(row => (
               <View key={row.id} style={styles.tableRow}>
                 <View style={[styles.td, styles.colSrNo]}><Text>{row.srNo}</Text></View>
-                <View style={[styles.td, styles.colDrawing]}><Text>{row.places ? `${row.places} X ` : ''}{row.drawingSizeSymbol ? `${row.drawingSizeSymbol} ` : ''}{row.drawingSize}</Text></View>
+                <View style={[styles.td, styles.colDrawing]}><Text>{(row.places || row.drawingSizeSymbol || row.drawingSize) ? `${row.places ? `${row.places} X ` : ''}${row.drawingSizeSymbol ? `${row.drawingSizeSymbol} ` : ''}${row.drawingSize || ''}`.trim() : '-'}</Text></View>
                 <View style={[styles.td, styles.colTol]}><Text>{row.calculatedTolerance !== '-' ? row.calculatedTolerance : row.toleranceVal || '-'}</Text></View>
                 {row.observations.map((obs, idx) => {
                   const isOutOfTol = checkIsOutOfTolerance(row.calculatedTolerance, obs);
@@ -235,7 +239,7 @@ export const ReportPDF = ({ project }) => {
                   );
                 })}
                 <View style={[styles.td, styles.colInst]}><Text>{row.instrument || '-'}</Text></View>
-                <View style={[styles.td, styles.colInstNo]}><Text>{row.instrumentNo || ''}</Text></View>
+                <View style={[styles.td, styles.colInstNo]}><Text>{row.instrumentNo || '-'}</Text></View>
               </View>
             ))}
 

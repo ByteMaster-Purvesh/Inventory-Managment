@@ -428,6 +428,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                     <input
                       id={`drawing-size-${row.id}`}
                       type="text"
+                      maxLength={30}
                       value={row.drawingSize}
                       onChange={(e) => updateRow(row.id, 'drawingSize', e.target.value)}
                       placeholder="e.g. ± 30"
@@ -441,6 +442,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                   <label className="text-xs font-medium text-zinc-400">TOLERANCE (Input)</label>
                   <input
                     type="text"
+                    maxLength={15}
                     value={row.toleranceVal}
                     onChange={(e) => updateRow(row.id, 'toleranceVal', e.target.value)}
                     placeholder="e.g. 0.2"
@@ -456,6 +458,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                   <label className="text-xs font-medium text-zinc-400">PLACES</label>
                   <input
                     type="text"
+                    maxLength={5}
                     value={row.places || ''}
                     onChange={(e) => {
                       const val = e.target.value.replace(/[^0-9]/g, '');
@@ -512,6 +515,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                       <div className="text-[10px] text-zinc-500 mb-1 text-center">Job {idx + 1}</div>
                       <input
                         type="text"
+                        maxLength={6}
                         value={obs}
                         onChange={(e) => updateObservation(row.id, idx, e.target.value)}
                         className="w-full text-center border border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-orange-500"

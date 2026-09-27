@@ -37,10 +37,10 @@ export const Editor = () => {
 
   const [activeSidebarTab, setActiveSidebarTab] = React.useState('projects');
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [showLivePreview, setShowLivePreview] = React.useState(false);
 
   const contextMenuRef = React.useRef(null);
   const fileContextMenuRef = React.useRef(null);
-  const previewPanelRef = React.useRef(null);
 
   React.useEffect(() => {
     if (contextMenu && contextMenuRef.current) {
@@ -626,76 +626,27 @@ export const Editor = () => {
                 </div>
               </div>
               
-              <PanelGroup orientation="vertical" className="flex-1 h-full">
-                <Panel defaultSize={67} minSize={20} className="flex flex-col overflow-hidden h-full">
-                  <InputPane onLivePreviewClick={() => {
-                    if (previewPanelRef.current) {
-                      previewPanelRef.current.resize(70);
-                      setTimeout(() => {
-                        const previewSection = document.getElementById('preview-pane-section');
-                        if (previewSection) {
-                          previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                      }, 100);
-                    }
-                  }} />
+              <PanelGroup direction="horizontal" className="flex-1 relative flex min-h-0 bg-[#1e1e1e]">
+                <Panel defaultSize={showLivePreview ? 60 : 100} minSize={30} className="flex flex-col min-h-0 relative">
+                  <InputPane onLivePreviewClick={() => setShowLivePreview(prev => !prev)} />
                 </Panel>
                 
-                <PanelResizeHandle className="h-1 bg-[#2b2b2b] hover:bg-orange-500 transition-colors focus:bg-orange-500 cursor-row-resize relative flex items-center justify-center shrink-0 group">
-                  <div className="w-8 h-1 rounded-full bg-zinc-600 group-hover:bg-zinc-300 transition-colors"></div>
-                </PanelResizeHandle>
-                
-                <Panel ref={previewPanelRef} defaultSize={33} minSize={20} className="flex flex-col overflow-hidden relative bg-[#1e1e1e] h-full">
-                  <PreviewPane />
-                </Panel>
+                {showLivePreview && (
+                  <>
+                    <PanelResizeHandle className="w-1 bg-[#2b2b2b] hover:bg-orange-500 transition-colors focus:bg-orange-500 cursor-col-resize relative flex items-center justify-center shrink-0 group z-10">
+                      <div className="h-8 w-1 rounded-full bg-zinc-600 group-hover:bg-zinc-300 transition-colors"></div>
+                    </PanelResizeHandle>
+                    <Panel defaultSize={40} minSize={20} className="flex flex-col bg-[#1e1e1e] border-l border-[#2b2b2b]">
+                      <PreviewPane onClose={() => setShowLivePreview(false)} />
+                    </Panel>
+                  </>
+                )}
               </PanelGroup>
             </>
           )}
           </Panel>
 
-          <PanelResizeHandle className="w-1 bg-[#2b2b2b] hover:bg-orange-500 transition-colors focus:bg-orange-500 cursor-col-resize relative flex items-center justify-center shrink-0 group hidden xl:flex z-10">
-            <div className="h-8 w-1 rounded-full bg-zinc-600 group-hover:bg-zinc-300 transition-colors"></div>
-          </PanelResizeHandle>
 
-          {/* Right Pane - Summary (Contextual Right Sidebar) */}
-          {activeProject && (
-            <Panel defaultSize={20} minSize={10} className="border-l border-[#2b2b2b] bg-[#1e1e1e] flex flex-col hidden xl:flex h-full">
-              <div className="p-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-[#2b2b2b]">
-                Context
-              </div>
-              <div className="p-4 space-y-6">
-                <div>
-                  <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2 font-semibold">Metadata</div>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="text-xs text-zinc-500">Customer</div>
-                      <div className="text-sm text-zinc-200 mt-0.5">{activeProject.customer || 'N/A'}</div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-zinc-500">Component</div>
-                      <div className="text-sm text-zinc-200 mt-0.5">{activeProject.componentsName || 'N/A'}</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="w-full h-px bg-[#2b2b2b]"></div>
-
-                <div>
-                  <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2 font-semibold">Stats</div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <div className="text-xs text-zinc-500">Total Rows</div>
-                      <div className="text-sm text-zinc-200 font-mono bg-zinc-800 px-2 py-0.5 rounded">{activeProject.rows?.length || 0}</div>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <div className="text-xs text-zinc-500">Last Updated</div>
-                      <div className="text-xs text-zinc-400">{activeProject.date}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Panel>
-          )}
         </PanelGroup>
 
       </div>

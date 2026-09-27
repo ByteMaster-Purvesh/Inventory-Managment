@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useReportStore } from '../../../store/useReportStore';
 import { checkIsOutOfTolerance } from '../../../lib/calculations';
-import { ZoomIn, ZoomOut, Maximize, Trash2, Copy, FlipHorizontal, Files, Hand, MousePointer2, ChevronUp, ChevronDown, RotateCw, Download, Share2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize, Trash2, Copy, FlipHorizontal, Files, Hand, MousePointer2, ChevronUp, ChevronDown, RotateCw, Download, Share2, X } from "lucide-react";
 import { Rnd } from "react-rnd";
 import { PDFDownloadLink, pdf } from '@react-pdf/renderer';
 import { ReportPDF } from './pdf/ReportPDF';
@@ -51,7 +51,7 @@ const InteractiveRow = ({ row, children, className }) => {
   );
 };
 
-export const PreviewPane = () => {
+export const PreviewPane = ({ onClose }) => {
   const activeProject = useReportStore((state) => state.activeProject);
   const updateActiveProject = useReportStore((state) => state.updateActiveProject);
   const updateProjectSettings = useReportStore((state) => state.updateProjectSettings);
@@ -121,6 +121,14 @@ export const PreviewPane = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageInputValue, setPageInputValue] = useState("1");
+  const [zoomInputValue, setZoomInputValue] = useState("80%");
+  const zoomInputFocused = useRef(false);
+
+  useEffect(() => {
+    if (!zoomInputFocused.current) {
+      setZoomInputValue(`${Math.round(zoomScale * 100)}%`);
+    }
+  }, [zoomScale]);
 
   useEffect(() => {
     setPageInputValue(currentPage.toString());
@@ -354,13 +362,17 @@ export const PreviewPane = () => {
   const pages = [];
   let currentIndex = 0;
   
-  if (activeProject.rows.length > 0) {
-    pages.push(activeProject.rows.slice(currentIndex, currentIndex + FIRST_PAGE_ROWS));
+  const validRows = activeProject.rows.filter(row => 
+    row.drawingSize || row.toleranceVal || row.instrument || row.places || row.observations.some(obs => obs && obs.trim() !== '')
+  );
+
+  if (validRows.length > 0) {
+    pages.push(validRows.slice(currentIndex, currentIndex + FIRST_PAGE_ROWS));
     currentIndex += FIRST_PAGE_ROWS;
   }
   
-  while (currentIndex < activeProject.rows.length) {
-    pages.push(activeProject.rows.slice(currentIndex, currentIndex + OTHER_PAGE_ROWS));
+  while (currentIndex < validRows.length) {
+    pages.push(validRows.slice(currentIndex, currentIndex + OTHER_PAGE_ROWS));
     currentIndex += OTHER_PAGE_ROWS;
   }
   
@@ -491,7 +503,30 @@ export const PreviewPane = () => {
               <button onClick={() => setZoomScale(p => Math.max(0.3, p - 0.1))} className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-300 hover:text-zinc-100" title="Zoom Out">
                 <ZoomOut size={16} />
               </button>
-              <div className="text-[10px] font-mono text-zinc-400 w-10 text-center">{Math.round(zoomScale * 100)}%</div>
+              <input 
+                value={zoomInputValue}
+                onFocus={() => { zoomInputFocused.current = true; }}
+                onChange={(e) => {
+                  setZoomInputValue(e.target.value);
+                  let val = parseInt(e.target.value.replace(/\D/g, ''));
+                  if (!isNaN(val)) {
+                    val = Math.max(10, Math.min(500, val));
+                    setZoomScale(val / 100);
+                  }
+                }}
+                onBlur={() => {
+                  zoomInputFocused.current = false;
+                  let val = parseInt(zoomInputValue.replace(/\D/g, ''));
+                  if (isNaN(val)) val = Math.round(zoomScale * 100);
+                  val = Math.max(30, Math.min(250, val));
+                  setZoomScale(val / 100);
+                  setZoomInputValue(`${val}%`);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.target.blur();
+                }}
+                className="w-12 px-1 py-0.5 bg-transparent hover:bg-zinc-800 focus:bg-zinc-950 rounded border border-transparent focus:border-zinc-700 text-[11px] font-mono text-center text-blue-400 outline-none transition-colors"
+              />
               <button onClick={() => setZoomScale(p => Math.min(2.5, p + 0.1))} className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-300 hover:text-zinc-100" title="Zoom In">
                 <ZoomIn size={16} />
               </button>
@@ -535,6 +570,18 @@ export const PreviewPane = () => {
                   </>
                 )}
               </PDFDownloadLink>
+              {onClose && (
+                <>
+                  <div className="h-4 w-px bg-zinc-700 mx-1"></div>
+                  <button 
+                    onClick={onClose} 
+                    className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 rounded transition-colors"
+                    title="Close Preview"
+                  >
+                    <X size={18} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -779,7 +826,7 @@ export const PreviewPane = () => {
                     <InteractiveRow key={row.id} row={row}>
                       <td className="border border-black p-1">{row.srNo}</td>
                       <td className="border border-black p-1 break-words">
-                        {row.drawingSizeSymbol} {row.drawingSize}
+                        {(row.places || row.drawingSizeSymbol || row.drawingSize) ? `${row.places ? `${row.places} X ` : ''}${row.drawingSizeSymbol ? `${row.drawingSizeSymbol} ` : ''}${row.drawingSize || ''}`.trim() : '-'}
                       </td>
                       <td className="border border-black p-1">
                         {row.calculatedTolerance !== '-' ? row.calculatedTolerance : row.toleranceVal || '-'}
@@ -796,7 +843,7 @@ export const PreviewPane = () => {
                       })}
 
                       <td className="border border-black p-1">{row.instrument || '-'}</td>
-                      <td className="border border-black p-1">{row.instrumentNo || ''}</td>
+                      <td className="border border-black p-1">{row.instrumentNo || '-'}</td>
                     </InteractiveRow>
                   ))}
                   {/* Empty rows to fill the page */}

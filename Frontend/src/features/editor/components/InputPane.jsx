@@ -69,6 +69,77 @@ const InstrumentCombobox = ({ value, onChange }) => {
   );
 };
 
+const TableCreatorGrid = ({ onTableCreate }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [hoveredRow, setHoveredRow] = useState(-1);
+  const [hoveredCol, setHoveredCol] = useState(-1);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const MAX_ROWS = 10;
+  const MAX_COLS = 10;
+
+  return (
+    <div ref={wrapperRef} className="relative inline-block">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${isOpen ? 'bg-orange-500/20 text-orange-500' : 'text-zinc-200 hover:bg-zinc-800'}`}
+        title="Insert Table"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
+        Table
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-50 mt-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl p-3">
+          <div className="text-xs font-semibold text-zinc-300 mb-2 text-center">
+            {hoveredRow >= 0 && hoveredCol >= 0 
+              ? `${hoveredCol + 1}x${hoveredRow + 1} Table`
+              : 'Insert Table'
+            }
+          </div>
+          <div className="flex flex-col gap-1">
+            {Array.from({ length: MAX_ROWS }).map((_, rIndex) => (
+              <div key={rIndex} className="flex gap-1">
+                {Array.from({ length: MAX_COLS }).map((_, cIndex) => {
+                  const isHighlighted = rIndex <= hoveredRow && cIndex <= hoveredCol;
+                  return (
+                    <div
+                      key={cIndex}
+                      onMouseEnter={() => {
+                        setHoveredRow(rIndex);
+                        setHoveredCol(cIndex);
+                      }}
+                      onClick={() => {
+                        onTableCreate(rIndex + 1, cIndex + 1);
+                        setIsOpen(false);
+                      }}
+                      className={`w-4 h-4 border cursor-pointer transition-colors ${
+                        isHighlighted 
+                          ? 'border-orange-500 bg-orange-500/20' 
+                          : 'border-zinc-600 bg-zinc-700/50 hover:border-zinc-500'
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const InputPane = ({ onLivePreviewClick }) => {
   const activeTab = useReportStore((state) => state.activeInputTab);
   const setActiveTab = useReportStore((state) => state.setActiveInputTab);
@@ -89,6 +160,10 @@ export const InputPane = ({ onLivePreviewClick }) => {
   const updateProjectSettings = useReportStore((state) => state.updateProjectSettings);
   const reorderRows = useReportStore((state) => state.reorderRows);
   const updateActiveProject = useReportStore((state) => state.updateActiveProject);
+  const addCustomTable = useReportStore((state) => state.addCustomTable);
+  const updateCustomTable = useReportStore((state) => state.updateCustomTable);
+  const updateCustomTableSize = useReportStore((state) => state.updateCustomTableSize);
+  const deleteCustomTable = useReportStore((state) => state.deleteCustomTable);
 
   if (!activeProject) return null;
 
@@ -125,6 +200,99 @@ export const InputPane = ({ onLivePreviewClick }) => {
     }
   };
 
+  const handleAddRow = () => {
+    addRow();
+    // Provide HCI feedback by scrolling to the newly added row
+    setTimeout(() => {
+      const scrollContainer = document.querySelector('.flex-1.overflow-y-auto');
+      if (scrollContainer) {
+        scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
+      }
+    }, 50);
+  };
+
+  const handleAddObservationColumn = () => {
+    addObservationColumn();
+    // Provide HCI feedback by scrolling the observation containers to the right
+    setTimeout(() => {
+      const containers = document.querySelectorAll('.overflow-x-auto.pb-1');
+      containers.forEach(container => {
+        container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
+      });
+    }, 50);
+  };
+
+  const handleDrawingSizeChange = (row, newValue) => {
+    updateRow(row.id, 'drawingSize', newValue);
+
+    const placesMatch = newValue.match(/^([=]?)(\d+)X\b/i);
+    if (placesMatch) {
+      updateRow(row.id, 'places', placesMatch[2]);
+    } else {
+      updateRow(row.id, 'places', '');
+    }
+
+    const tolMatch = newValue.match(/(?:±|\+|-|\+-)\s*\d+(\.\d+)?$/);
+    if (tolMatch) {
+      updateRow(row.id, 'toleranceVal', tolMatch[0].trim());
+    } else {
+      updateRow(row.id, 'toleranceVal', '');
+    }
+  };
+
+  const handlePlacesChange = (row, newValue) => {
+    const val = newValue.replace(/[^0-9]/g, '');
+    updateRow(row.id, 'places', val);
+    
+    let ds = row.drawingSize || '';
+    const hasPlaces = ds.match(/^([=]?)\d+X\b/i);
+    
+    if (val) {
+      if (hasPlaces) {
+        ds = ds.replace(/^([=]?)\d+X\b/i, `$1${val}X`);
+      } else {
+        ds = `${val}X ` + ds;
+      }
+    } else {
+      if (hasPlaces) {
+        ds = ds.replace(/^[=]?\d+X[\s=]*/i, '');
+      }
+    }
+    updateRow(row.id, 'drawingSize', ds);
+  };
+
+  const handleToleranceChange = (row, newValue) => {
+    updateRow(row.id, 'toleranceVal', newValue);
+    
+    let ds = row.drawingSize || '';
+    const hasTol = ds.match(/(?:±|\+|-|\+-)\s*\d+(\.\d+)?$/);
+    
+    if (newValue) {
+      let valToAppend = newValue.trim();
+      if (hasTol) {
+        if (!/^(?:±|\+|-|\+-)/.test(valToAppend)) {
+          const oldSignMatch = hasTol[0].match(/^(?:±|\+|-|\+-)\s*/);
+          if (oldSignMatch) {
+            valToAppend = oldSignMatch[0].trim() + valToAppend;
+          } else {
+            valToAppend = '±' + valToAppend;
+          }
+        }
+        ds = ds.replace(/(?:±|\+|-|\+-)\s*\d+(\.\d+)?$/, valToAppend);
+      } else {
+        if (!/^(?:±|\+|-|\+-)/.test(valToAppend)) {
+          valToAppend = '±' + valToAppend;
+        }
+        ds = ds + valToAppend;
+      }
+    } else {
+      if (hasTol) {
+        ds = ds.replace(/(?:±|\+|-|\+-)\s*\d+(\.\d+)?$/, '');
+      }
+    }
+    updateRow(row.id, 'drawingSize', ds);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 bg-zinc-900 border-b border-zinc-800 flex justify-between items-center shrink-0">
@@ -134,14 +302,27 @@ export const InputPane = ({ onLivePreviewClick }) => {
         </h2>
         <div className="flex gap-2">
           <button 
-            onClick={addRow}
+            onClick={handleAddRow}
             className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded text-sm font-medium transition-colors"
           >
             <Plus size={16} />
             Add Row
           </button>
           <button 
-            onClick={handleLivePreview}
+            onClick={() => {
+              useReportStore.getState().setPreviewMode('snagsheet');
+              handleLivePreview();
+            }}
+            className="flex items-center justify-center gap-2 bg-[#d97706] hover:bg-[#b45309] text-white px-3 py-1.5 rounded text-sm font-medium transition-colors w-[145px]"
+          >
+            <Eye size={16} />
+            Snack Sheet
+          </button>
+          <button 
+            onClick={() => {
+              useReportStore.getState().setPreviewMode('report');
+              handleLivePreview();
+            }}
             className={`flex items-center justify-center gap-2 bg-[#007acc] hover:bg-[#005999] text-white px-3 py-1.5 rounded text-sm font-medium transition-colors w-[145px]`}
           >
             <Eye size={16} />
@@ -261,6 +442,21 @@ export const InputPane = ({ onLivePreviewClick }) => {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Table Creator */}
+              <div className="flex items-center gap-2 pr-4 border-r border-zinc-800">
+                <TableCreatorGrid 
+                  onTableCreate={(r, c) => {
+                    addCustomTable(r, c);
+                    setTimeout(() => {
+                      const scrollContainer = document.querySelector('.flex-1.overflow-y-auto');
+                      if (scrollContainer) {
+                        scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
+                      }
+                    }, 100);
+                  }}
+                />
               </div>
 
               {/* Image Upload */}
@@ -429,8 +625,8 @@ export const InputPane = ({ onLivePreviewClick }) => {
                       id={`drawing-size-${row.id}`}
                       type="text"
                       maxLength={30}
-                      value={row.drawingSize}
-                      onChange={(e) => updateRow(row.id, 'drawingSize', e.target.value)}
+                      value={row.drawingSize || ''}
+                      onChange={(e) => handleDrawingSizeChange(row, e.target.value)}
                       placeholder="e.g. ± 30"
                       className="flex-1 border border-zinc-700 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-transparent text-zinc-200"
                     />
@@ -443,8 +639,8 @@ export const InputPane = ({ onLivePreviewClick }) => {
                   <input
                     type="text"
                     maxLength={15}
-                    value={row.toleranceVal}
-                    onChange={(e) => updateRow(row.id, 'toleranceVal', e.target.value)}
+                    value={row.toleranceVal || ''}
+                    onChange={(e) => handleToleranceChange(row, e.target.value)}
                     placeholder="e.g. 0.2"
                     className="w-full border border-zinc-700 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-transparent text-zinc-200"
                   />
@@ -460,10 +656,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                     type="text"
                     maxLength={5}
                     value={row.places || ''}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      updateRow(row.id, 'places', val);
-                    }}
+                    onChange={(e) => handlePlacesChange(row, e.target.value)}
                     placeholder="e.g. 1"
                     className="w-full border border-zinc-700 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-transparent text-zinc-200"
                   />
@@ -493,7 +686,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                         <Columns size={12} className="mr-1" /> -
                       </button>
                       <button 
-                        onClick={addObservationColumn}
+                        onClick={handleAddObservationColumn}
                         className="p-1 text-zinc-400 hover:text-orange-500 hover:bg-orange-500/10 rounded flex items-center text-xs"
                         title="Add Job/Piece Column"
                       >
@@ -528,6 +721,68 @@ export const InputPane = ({ onLivePreviewClick }) => {
             </div>
           ))
         )}
+      </div>
+
+      {/* Render Custom Tables */}
+      <div className="flex-1 overflow-y-auto hide-scrollbar p-4 pt-0 space-y-4">
+        {(activeProject.customTables || []).map((table, tIndex) => (
+          <div key={table.id} className="bg-zinc-900 p-4 rounded-lg shadow-sm border border-zinc-800 space-y-3">
+            <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
+              <span className="font-semibold text-orange-500">Custom Table {tIndex + 1} ({table.cols}x{table.rows})</span>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded">
+                  <button 
+                    onClick={() => updateCustomTableSize(table.id, Math.max(1, table.rows - 1), table.cols)}
+                    className="p-1 hover:text-red-500 text-zinc-400" title="Remove Row"
+                  >-</button>
+                  <span className="text-xs text-zinc-500">Rows</span>
+                  <button 
+                    onClick={() => updateCustomTableSize(table.id, table.rows + 1, table.cols)}
+                    className="p-1 hover:text-orange-500 text-zinc-400" title="Add Row"
+                  >+</button>
+                </div>
+                <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded">
+                  <button 
+                    onClick={() => updateCustomTableSize(table.id, table.rows, Math.max(1, table.cols - 1))}
+                    className="p-1 hover:text-red-500 text-zinc-400" title="Remove Col"
+                  >-</button>
+                  <span className="text-xs text-zinc-500">Cols</span>
+                  <button 
+                    onClick={() => updateCustomTableSize(table.id, table.rows, table.cols + 1)}
+                    className="p-1 hover:text-orange-500 text-zinc-400" title="Add Col"
+                  >+</button>
+                </div>
+                <button 
+                  onClick={() => deleteCustomTable(table.id)}
+                  className="text-zinc-500 hover:text-red-500 p-1 rounded ml-2 transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <tbody>
+                  {table.data.map((r, rIndex) => (
+                    <tr key={rIndex}>
+                      {r.map((cellValue, cIndex) => (
+                        <td key={cIndex} className="p-1 border border-zinc-800">
+                          <input
+                            type="text"
+                            value={cellValue}
+                            onChange={(e) => updateCustomTable(table.id, rIndex, cIndex, e.target.value)}
+                            className="w-full min-w-[80px] bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-orange-500 text-zinc-200"
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

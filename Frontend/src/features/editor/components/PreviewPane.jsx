@@ -5,6 +5,7 @@ import { ZoomIn, ZoomOut, Maximize, Trash2, Copy, FlipHorizontal, Files, Hand, M
 import { Rnd } from "react-rnd";
 import { PDFDownloadLink, pdf } from '@react-pdf/renderer';
 import { ReportPDF } from './pdf/ReportPDF';
+import { SnagSheetPDF } from './pdf/SnagSheetPDF';
 
 const InteractiveField = ({ tabName, fieldId, children, className = "p-1" }) => {
   const setActiveInputTab = useReportStore((state) => state.setActiveInputTab);
@@ -53,6 +54,8 @@ const InteractiveRow = ({ row, children, className }) => {
 
 export const PreviewPane = ({ onClose }) => {
   const activeProject = useReportStore((state) => state.activeProject);
+  const projects = useReportStore((state) => state.projects);
+  const previewMode = useReportStore((state) => state.previewMode || 'report');
   const updateActiveProject = useReportStore((state) => state.updateActiveProject);
   const updateProjectSettings = useReportStore((state) => state.updateProjectSettings);
   const [zoomScale, setZoomScale] = useState(0.8); // Start slightly zoomed out to fit better
@@ -315,11 +318,14 @@ export const PreviewPane = ({ onClose }) => {
 
   const handleShare = async () => {
     try {
-      const doc = <ReportPDF project={activeProject} />;
+      const doc = previewMode === 'snagsheet' 
+        ? <SnagSheetPDF activeProject={activeProject} allProjects={projects} />
+        : <ReportPDF project={activeProject} />;
       const asPdf = pdf(doc);
       const blob = await asPdf.toBlob();
       
-      const file = new File([blob], `${activeProject.projectName?.replace(/\s+/g, '_') || 'Report'}_Inspection_Report.pdf`, {
+      const fileNameSuffix = previewMode === 'snagsheet' ? 'Snack_Sheet' : 'Inspection_Report';
+      const file = new File([blob], `${activeProject.projectName?.replace(/\s+/g, '_') || 'Report'}_${fileNameSuffix}.pdf`, {
         type: 'application/pdf',
       });
 
@@ -340,9 +346,6 @@ export const PreviewPane = ({ onClose }) => {
 
   if (!activeProject) return null;
 
-  const jobCount = activeProject.rows[0]?.observations.length || 1;
-  const colSpanForId = jobCount > 1 ? jobCount : 1;
-
   const settings = activeProject.settings || {
     fontFamily: 'Helvetica', fontSize: 11, isBold: false, isItalic: false, textAlign: 'left', logoUrl: null
   };
@@ -362,9 +365,42 @@ export const PreviewPane = ({ onClose }) => {
   const pages = [];
   let currentIndex = 0;
   
-  const validRows = activeProject.rows.filter(row => 
-    row.drawingSize || row.toleranceVal || row.instrument || row.places || row.observations.some(obs => obs && obs.trim() !== '')
-  );
+  let validRows = [];
+
+  if (previewMode === 'snagsheet') {
+    const projectComponents = projects.filter(p => p.projectName === activeProject.projectName);
+    projectComponents.forEach(comp => {
+      const outOfTolRows = comp.rows.filter(row => 
+        (row.drawingSize || row.toleranceVal || row.instrument || row.places) &&
+        row.observations.some(obs => checkIsOutOfTolerance(row.calculatedTolerance, obs))
+      );
+  
+      if (outOfTolRows.length > 0) {
+        validRows.push({
+          type: 'component_header',
+          id: `header-${comp.id}`,
+          name: comp.componentsName || 'Untitled Component',
+          jobCount: outOfTolRows[0]?.observations.length || 1,
+        });
+        outOfTolRows.forEach(r => {
+          validRows.push({
+            type: 'data_row',
+            ...r,
+            jobCount: r.observations.length
+          });
+        });
+      }
+    });
+  } else {
+    validRows = activeProject.rows.filter(row => 
+      row.drawingSize || row.toleranceVal || row.instrument || row.places || row.observations.some(obs => obs && obs.trim() !== '')
+    );
+  }
+
+  const maxJobCount = previewMode === 'snagsheet' && validRows.length > 0 
+    ? Math.max(...validRows.map(r => r.jobCount || 1))
+    : activeProject.rows[0]?.observations.length || 1;
+  const colSpanForId = maxJobCount > 1 ? maxJobCount : 1;
 
   if (validRows.length > 0) {
     pages.push(validRows.slice(currentIndex, currentIndex + FIRST_PAGE_ROWS));
@@ -450,7 +486,9 @@ export const PreviewPane = ({ onClose }) => {
       <div id="preview-pane-section" className="flex flex-col w-full h-full bg-[#1e1e1e]">
         {/* Header Bar */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-[#2b2b2b] shrink-0 bg-[#1e1e1e]">
-          <div className="text-sm font-semibold text-zinc-300">Preview</div>
+          <div className="text-sm font-semibold text-zinc-300">
+            Preview: {previewMode === 'snagsheet' ? 'Snack Sheet' : 'Inspection Report'}
+          </div>
           
           {/* Toolbar Items (Horizontal) */}
           <div className="flex items-center gap-2">
@@ -559,8 +597,8 @@ export const PreviewPane = ({ onClose }) => {
                 Share
               </button>
               <PDFDownloadLink 
-                document={<ReportPDF project={activeProject} />} 
-                fileName={`${activeProject.projectName?.replace(/\s+/g, '_')}_Inspection_Report.pdf`}
+                document={previewMode === 'snagsheet' ? <SnagSheetPDF activeProject={activeProject} allProjects={projects} /> : <ReportPDF project={activeProject} />} 
+                fileName={`${activeProject.projectName?.replace(/\s+/g, '_')}_${previewMode === 'snagsheet' ? 'Snack_Sheet' : 'Inspection_Report'}.pdf`}
                 className="flex items-center gap-2 bg-[#007acc] hover:bg-[#005999] text-white px-6 py-1.5 rounded text-sm font-medium transition-colors"
               >
                 {({ loading }) => (
@@ -685,7 +723,7 @@ export const PreviewPane = ({ onClose }) => {
                       )}
                     </div>
                     <div className="w-1/2 p-2 flex flex-col justify-center items-start pl-8 font-bold">
-                      <div className="text-lg tracking-wider">INSPECTION REPORT</div>
+                      <div className="text-lg tracking-wider">{previewMode === 'snagsheet' ? 'SNACK SHEET' : 'INSPECTION REPORT'}</div>
                       <div className="text-[12px]">Format No.QC16/FM/35</div>
                       <div className="text-[12px]">Rev-01 & 11/10/2011</div>
                     </div>
@@ -715,7 +753,7 @@ export const PreviewPane = ({ onClose }) => {
                         <InteractiveField tabName="Form" fieldId="input-field-date">Date: {activeProject.date}</InteractiveField>
                         <div className="p-1">Page no.: {pageIndex + 1} of {pages.length}</div>
                       </div>
-                      <InteractiveField tabName="Form" fieldId="input-field-componentsName">Components name: <span className="font-bold">{activeProject.componentsName}</span></InteractiveField>
+                      <InteractiveField tabName="Form" fieldId="input-field-componentsName">Components name: <span className="font-bold">{previewMode === 'snagsheet' ? 'MULTIPLE' : activeProject.componentsName}</span></InteractiveField>
                       <div className="grid grid-cols-[65%_35%] divide-x divide-black">
                         <InteractiveField tabName="Form" fieldId="input-field-drgNo" className="p-1 px-2 whitespace-nowrap">Drg. No: {activeProject.drgNo}</InteractiveField>
                         <InteractiveField tabName="Form" fieldId="input-field-revNo" className="p-1 px-2 whitespace-nowrap">Rev No.: {activeProject.revNo}</InteractiveField>
@@ -782,7 +820,7 @@ export const PreviewPane = ({ onClose }) => {
                       )}
                     </div>
                     <div className="w-1/2 p-2 flex flex-col justify-center items-start pl-8 font-bold">
-                      <div className="text-lg tracking-wider">INSPECTION REPORT</div>
+                      <div className="text-lg tracking-wider">{previewMode === 'snagsheet' ? 'SNACK SHEET' : 'INSPECTION REPORT'}</div>
                       <div className="text-[12px]">Format No.QC16/FM/35</div>
                       <div className="text-[12px]">Rev-01 & 11/10/2011</div>
                     </div>
@@ -794,7 +832,7 @@ export const PreviewPane = ({ onClose }) => {
                     <div className="w-1/3 p-1">Page no.: {pageIndex + 1} of {pages.length}</div>
                   </div>
                   <div className="flex divide-x divide-black">
-                    <InteractiveField tabName="Form" fieldId="input-field-componentsName" className="w-1/2 p-1">Comp name: {activeProject.componentsName}</InteractiveField>
+                    <InteractiveField tabName="Form" fieldId="input-field-componentsName" className="w-1/2 p-1">Comp name: {previewMode === 'snagsheet' ? 'MULTIPLE' : activeProject.componentsName}</InteractiveField>
                     <InteractiveField tabName="Form" fieldId="input-field-drgNo" className="w-1/4 p-1">Drg. No: {activeProject.drgNo}</InteractiveField>
                     <InteractiveField tabName="Form" fieldId="input-field-revNo" className="w-1/4 p-1">Rev No.: {activeProject.revNo}</InteractiveField>
                   </div>
@@ -822,30 +860,48 @@ export const PreviewPane = ({ onClose }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {pageRows.map((row) => (
-                    <InteractiveRow key={row.id} row={row}>
-                      <td className="border border-black p-1">{row.srNo}</td>
-                      <td className="border border-black p-1 break-words">
-                        {(row.places || row.drawingSizeSymbol || row.drawingSize) ? `${row.places ? `${row.places} X ` : ''}${row.drawingSizeSymbol ? `${row.drawingSizeSymbol} ` : ''}${row.drawingSize || ''}`.trim() : '-'}
+                  {pageRows.length === 0 ? (
+                    <tr className="bg-white">
+                      <td colSpan={5 + colSpanForId} className="border border-black p-4 text-center">
+                        No out-of-tolerance values found in this project.
                       </td>
-                      <td className="border border-black p-1">
-                        {row.calculatedTolerance !== '-' ? row.calculatedTolerance : row.toleranceVal || '-'}
-                      </td>
-                      
-                      {/* Observations / Jobs */}
-                      {row.observations.map((obs, idx) => {
-                        const isOutOfTol = checkIsOutOfTolerance(row.calculatedTolerance, obs);
-                        return (
-                          <td key={idx} className={`border border-black p-1 ${isOutOfTol ? 'font-bold' : ''}`}>
-                            {obs || '-'}
+                    </tr>
+                  ) : pageRows.map((row) => {
+                    if (row.type === 'component_header') {
+                      return (
+                        <tr key={row.id} className="bg-[#fff7ed]">
+                          <td colSpan={5 + colSpanForId} className="border border-black p-1 font-bold text-left px-4">
+                            Component: {row.name}
                           </td>
-                        );
-                      })}
+                        </tr>
+                      );
+                    }
+                    return (
+                      <InteractiveRow key={row.id} row={row}>
+                        <td className="border border-black p-1">{row.srNo}</td>
+                        <td className="border border-black p-1 break-words">
+                          {(row.places || row.drawingSizeSymbol || row.drawingSize) ? `${row.places ? `${row.places} X ` : ''}${row.drawingSizeSymbol ? `${row.drawingSizeSymbol} ` : ''}${row.drawingSize || ''}`.trim() : '-'}
+                        </td>
+                        <td className="border border-black p-1">
+                          {row.calculatedTolerance !== '-' ? row.calculatedTolerance : row.toleranceVal || '-'}
+                        </td>
+                        
+                        {/* Observations / Jobs */}
+                        {Array.from({ length: colSpanForId }).map((_, idx) => {
+                          const obs = row.observations[idx];
+                          const isOutOfTol = obs !== undefined && obs !== '' ? checkIsOutOfTolerance(row.calculatedTolerance, obs) : false;
+                          return (
+                            <td key={idx} className={`border border-black p-1 ${isOutOfTol ? 'font-bold text-red-600 underline' : ''}`}>
+                              {obs !== undefined && obs !== '' ? obs : '-'}
+                            </td>
+                          );
+                        })}
 
-                      <td className="border border-black p-1">{row.instrument || '-'}</td>
-                      <td className="border border-black p-1">{row.instrumentNo || '-'}</td>
-                    </InteractiveRow>
-                  ))}
+                        <td className="border border-black p-1">{row.instrument || '-'}</td>
+                        <td className="border border-black p-1">{row.instrumentNo || '-'}</td>
+                      </InteractiveRow>
+                    );
+                  })}
                   {/* Empty rows to fill the page */}
                   {Array.from({ length: Math.max(0, (pageIndex === 0 ? FIRST_PAGE_ROWS : OTHER_PAGE_ROWS) - pageRows.length) }).map((_, i) => (
                     <tr key={`empty-${i}`} className="h-[28px]">

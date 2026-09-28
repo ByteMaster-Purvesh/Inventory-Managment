@@ -47,6 +47,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  compHeader: {
+    borderBottom: '1pt solid #000',
+    borderRight: '1pt solid #000',
+    padding: 3,
+    backgroundColor: '#fff7ed', // slight orange tint
+    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 10,
+  },
 
   // Specific Columns
   colSrNo: { width: '8%' },
@@ -56,37 +65,66 @@ const styles = StyleSheet.create({
   colInstNo: { width: '10%' },
 });
 
-export const ReportPDF = ({ project }) => {
-  if (!project) return null;
+export const SnagSheetPDF = ({ activeProject, allProjects }) => {
+  if (!activeProject || !allProjects) return null;
 
   // Scale pixels (from UI) to pt (for PDF)
-  // UI width is 800px. PDF A4 width is 595.28pt, but with 30pt padding, usable width is 535.28pt. Ratio is 535.28/800 = 0.6691
   const scale = (val) => (val || 0) * 0.6691;
 
-  const jobCount = project.rows[0]?.observations.length || 1;
-  const obsWidth = `${24 / jobCount}%`; 
+  // Find all components in the same project group
+  const projectComponents = allProjects.filter(p => p.projectName === activeProject.projectName);
 
-  const settings = project.settings || { fontFamily: 'Helvetica', fontSize: 9 };
+  const settings = activeProject.settings || { fontFamily: 'Helvetica', fontSize: 9 };
   const FIRST_PAGE_ROWS = 22;
   const OTHER_PAGE_ROWS = 27;
+
+  // We will build a unified list of rows to render.
+  // A row can be a "component_header" or a "data_row".
+  const unifiedRows = [];
+  
+  projectComponents.forEach(comp => {
+    const outOfTolRows = comp.rows.filter(row => 
+      (row.drawingSize || row.toleranceVal || row.instrument || row.places) &&
+      row.observations.some(obs => checkIsOutOfTolerance(row.calculatedTolerance, obs))
+    );
+
+    if (outOfTolRows.length > 0) {
+      // Add a header for this component
+      unifiedRows.push({
+        type: 'component_header',
+        id: `header-${comp.id}`,
+        name: comp.componentsName || 'Untitled Component',
+        jobCount: outOfTolRows[0]?.observations.length || 1, // needed for column sizing
+      });
+      
+      // Add the rows
+      outOfTolRows.forEach(r => {
+        unifiedRows.push({
+          type: 'data_row',
+          ...r,
+          jobCount: r.observations.length
+        });
+      });
+    }
+  });
+
   const pages = [];
   let currentIndex = 0;
   
-  const validRows = project.rows.filter(row => 
-    row.drawingSize || row.toleranceVal || row.instrument || row.places || row.observations.some(obs => obs && obs.trim() !== '')
-  );
-  
-  if (validRows.length > 0) {
-    pages.push(validRows.slice(currentIndex, currentIndex + FIRST_PAGE_ROWS));
+  if (unifiedRows.length > 0) {
+    pages.push(unifiedRows.slice(currentIndex, currentIndex + FIRST_PAGE_ROWS));
     currentIndex += FIRST_PAGE_ROWS;
   }
   
-  while (currentIndex < validRows.length) {
-    pages.push(validRows.slice(currentIndex, currentIndex + OTHER_PAGE_ROWS));
+  while (currentIndex < unifiedRows.length) {
+    pages.push(unifiedRows.slice(currentIndex, currentIndex + OTHER_PAGE_ROWS));
     currentIndex += OTHER_PAGE_ROWS;
   }
   
   if (pages.length === 0) pages.push([]);
+
+  // Base PDF on activeProject for headers/footers
+  const project = activeProject; 
 
   return (
     <Document>
@@ -117,7 +155,7 @@ export const ReportPDF = ({ project }) => {
                     )}
                   </View>
                   <View style={[{ width: '50%', justifyContent: 'center', paddingLeft: 30 }, styles.p1]}>
-                    <Text style={[styles.bold, { fontSize: 14, letterSpacing: 1 }]}>INSPECTION REPORT</Text>
+                    <Text style={[styles.bold, { fontSize: 14, letterSpacing: 1 }]}>SNACK SHEET</Text>
                     <Text style={{ fontSize: 9, fontWeight: 'bold' }}>Format No.QC16/FM/35</Text>
                     <Text style={{ fontSize: 9 }}>Rev-01 & 11/10/2011</Text>
                   </View>
@@ -147,7 +185,7 @@ export const ReportPDF = ({ project }) => {
                       <View style={[{ width: '50%' }, styles.borderR, styles.p1]}><Text>Date: {project.date}</Text></View>
                       <View style={[{ width: '50%' }, styles.p1]}><Text>Page no.: {pageIndex + 1} of {pages.length}</Text></View>
                     </View>
-                    <View style={[styles.borderB, styles.p1]}><Text>Components name: <Text style={styles.bold}>{project.componentsName}</Text></Text></View>
+                    <View style={[styles.borderB, styles.p1]}><Text>Components name: <Text style={styles.bold}>MULTIPLE</Text></Text></View>
                     <View style={[styles.row, styles.borderB]}>
                       <View style={[{ width: '65%' }, styles.borderR, styles.p1]}><Text>Drg. No: {project.drgNo}</Text></View>
                       <View style={[{ width: '35%' }, styles.p1]}><Text>Rev No.: {project.revNo}</Text></View>
@@ -184,7 +222,7 @@ export const ReportPDF = ({ project }) => {
                     )}
                   </View>
                   <View style={[{ width: '50%', justifyContent: 'center', paddingLeft: 30 }, styles.p1]}>
-                    <Text style={[styles.bold, { fontSize: 14, letterSpacing: 1 }]}>INSPECTION REPORT</Text>
+                    <Text style={[styles.bold, { fontSize: 14, letterSpacing: 1 }]}>SNACK SHEET</Text>
                     <Text style={{ fontSize: 9, fontWeight: 'bold' }}>Format No.QC16/FM/35</Text>
                     <Text style={{ fontSize: 9 }}>Rev-01 & 11/10/2011</Text>
                   </View>
@@ -196,7 +234,7 @@ export const ReportPDF = ({ project }) => {
                   <View style={[{ width: '33.34%' }, styles.p1]}><Text>Page no.: {pageIndex + 1} of {pages.length}</Text></View>
                 </View>
                 <View style={styles.row}>
-                  <View style={[{ width: '50%' }, styles.borderR, styles.p1]}><Text>Comp name: {project.componentsName}</Text></View>
+                  <View style={[{ width: '50%' }, styles.borderR, styles.p1]}><Text>Comp name: MULTIPLE</Text></View>
                   <View style={[{ width: '25%' }, styles.borderR, styles.p1]}><Text>Drg. No: {project.drgNo}</Text></View>
                   <View style={[{ width: '25%' }, styles.p1]}><Text>Rev No.: {project.revNo}</Text></View>
                 </View>
@@ -213,12 +251,8 @@ export const ReportPDF = ({ project }) => {
               <View style={[styles.th, styles.colTol]}><Text>TOLERANCE</Text></View>
               <View style={[styles.col, { width: '24%', borderRightWidth: 1, borderBottomWidth: 1, borderColor: '#000' }]}>
                 <View style={[styles.th, { width: '100%', borderRightWidth: 0, borderBottomWidth: 1 }]}><Text>COMPONENT IDENTIFICATION</Text></View>
-                <View style={[styles.row, { flexGrow: 1 }]}>
-                  {Array.from({ length: jobCount }).map((_, i) => (
-                    <View key={`job-${i}`} style={[styles.th, { width: `${100 / jobCount}%`, flexGrow: 1, borderRightWidth: i === jobCount - 1 ? 0 : 1, borderBottomWidth: 0 }]}>
-                      <Text>0{i + 1}</Text>
-                    </View>
-                  ))}
+                <View style={[styles.row, { flexGrow: 1, backgroundColor: '#f8fafc' }]}>
+                   <View style={[{ flexGrow: 1, justifyContent: 'center', alignItems: 'center' }]}><Text style={styles.bold}>Jobs</Text></View>
                 </View>
               </View>
               <View style={[styles.th, styles.colInst]}><Text>Inst. Used</Text></View>
@@ -226,23 +260,42 @@ export const ReportPDF = ({ project }) => {
             </View>
 
             {/* Rows */}
-            {pageRows.map(row => (
-              <View key={row.id} style={styles.tableRow}>
-                <View style={[styles.td, styles.colSrNo]}><Text>{row.srNo}</Text></View>
-                <View style={[styles.td, styles.colDrawing]}><Text>{(row.places || row.drawingSizeSymbol || row.drawingSize) ? `${row.places ? `${row.places} X ` : ''}${row.drawingSizeSymbol ? `${row.drawingSizeSymbol} ` : ''}${row.drawingSize || ''}`.trim() : '-'}</Text></View>
-                <View style={[styles.td, styles.colTol]}><Text>{row.calculatedTolerance !== '-' ? row.calculatedTolerance : row.toleranceVal || '-'}</Text></View>
-                {row.observations.map((obs, idx) => {
-                  const isOutOfTol = checkIsOutOfTolerance(row.calculatedTolerance, obs);
-                  return (
-                    <View key={`obs-${idx}`} style={[styles.td, { width: obsWidth }]}>
-                      <Text style={isOutOfTol ? styles.exceedingValue : {}}>{obs || '-'}</Text>
-                    </View>
-                  );
-                })}
-                <View style={[styles.td, styles.colInst]}><Text>{row.instrument || '-'}</Text></View>
-                <View style={[styles.td, styles.colInstNo]}><Text>{row.instrumentNo || '-'}</Text></View>
-              </View>
-            ))}
+            {pageRows.length === 0 ? (
+               <View style={styles.tableRow}>
+                 <View style={[styles.td, { width: '100%' }]}><Text>No out-of-tolerance values found in this project.</Text></View>
+               </View>
+            ) : pageRows.map(row => {
+              if (row.type === 'component_header') {
+                return (
+                  <View key={row.id} style={styles.tableRow}>
+                    <View style={[styles.compHeader, { width: '100%' }]}><Text>Component: {row.name}</Text></View>
+                  </View>
+                );
+              }
+
+              // Normal data row
+              const jobCount = row.jobCount || 1;
+              const obsWidth = `${100 / jobCount}%`;
+              return (
+                <View key={row.id} style={styles.tableRow}>
+                  <View style={[styles.td, styles.colSrNo]}><Text>{row.srNo}</Text></View>
+                  <View style={[styles.td, styles.colDrawing]}><Text>{(row.places || row.drawingSizeSymbol || row.drawingSize) ? `${row.places ? `${row.places} X ` : ''}${row.drawingSizeSymbol ? `${row.drawingSizeSymbol} ` : ''}${row.drawingSize || ''}`.trim() : '-'}</Text></View>
+                  <View style={[styles.td, styles.colTol]}><Text>{row.calculatedTolerance !== '-' ? row.calculatedTolerance : row.toleranceVal || '-'}</Text></View>
+                  <View style={[styles.row, { width: '24%', borderRightWidth: 1, borderBottomWidth: 1, borderColor: '#000' }]}>
+                    {row.observations.map((obs, idx) => {
+                      const isOutOfTol = checkIsOutOfTolerance(row.calculatedTolerance, obs);
+                      return (
+                        <View key={`obs-${idx}`} style={[{ width: obsWidth, borderRightWidth: idx === jobCount - 1 ? 0 : 1, borderColor: '#000', padding: 3, justifyContent: 'center', alignItems: 'center' }]}>
+                          <Text style={isOutOfTol ? styles.exceedingValue : {}}>{obs || '-'}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                  <View style={[styles.td, styles.colInst]}><Text>{row.instrument || '-'}</Text></View>
+                  <View style={[styles.td, styles.colInstNo]}><Text>{row.instrumentNo || '-'}</Text></View>
+                </View>
+              );
+            })}
 
             {/* Empty Rows Padding */}
             {Array.from({ length: Math.max(0, (pageIndex === 0 ? FIRST_PAGE_ROWS : OTHER_PAGE_ROWS) - pageRows.length) }).map((_, i) => (
@@ -250,9 +303,7 @@ export const ReportPDF = ({ project }) => {
                 <View style={[styles.td, styles.colSrNo]}><Text>{"\u00A0"}</Text></View>
                 <View style={[styles.td, styles.colDrawing]}><Text>{"\u00A0"}</Text></View>
                 <View style={[styles.td, styles.colTol]}><Text>{"\u00A0"}</Text></View>
-                {Array.from({ length: jobCount }).map((_, j) => (
-                  <View key={`empty-obs-${j}`} style={[styles.td, { width: obsWidth }]}><Text>{"\u00A0"}</Text></View>
-                ))}
+                <View style={[styles.td, { width: '24%' }]}><Text>{"\u00A0"}</Text></View>
                 <View style={[styles.td, styles.colInst]}><Text>{"\u00A0"}</Text></View>
                 <View style={[styles.td, styles.colInstNo]}><Text>{"\u00A0"}</Text></View>
               </View>

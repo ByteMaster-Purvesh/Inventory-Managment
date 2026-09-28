@@ -21,7 +21,9 @@ export const useReportStore = create((set, get) => ({
   activeProject: null,
   activeRowId: null,
   activeInputTab: 'Home',
+  previewMode: 'report',
 
+  setPreviewMode: (mode) => set({ previewMode: mode }),
   setActiveInputTab: (tab) => set({ activeInputTab: tab }),
   setActiveRow: (id) => set({ activeRowId: id }),
 
@@ -54,6 +56,7 @@ export const useReportStore = create((set, get) => ({
       godrejStampUrl: null,
       godrejStampUrl2: null,
       rows: [], // Holds the tabular data
+      customTables: [], // Array of custom tables created by the user
       settings: {
         fontFamily: 'Helvetica',
         fontSize: 11,
@@ -351,6 +354,92 @@ export const useReportStore = create((set, get) => ({
       }));
       const updatedProject = { ...state.activeProject, rows: updatedRows };
       return { activeProject: updatedProject };
+    });
+  },
+
+  addCustomTable: (rows, cols) => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      const newTable = {
+        id: Date.now().toString(),
+        rows,
+        cols,
+        data: Array.from({ length: rows }, () => Array(cols).fill(''))
+      };
+      const updatedProject = {
+        ...state.activeProject,
+        customTables: [...(state.activeProject.customTables || []), newTable]
+      };
+      const updatedProjects = state.projects.map((p) => p.id === updatedProject.id ? updatedProject : p);
+      saveToLocalStorage(updatedProjects);
+      return { activeProject: updatedProject, projects: updatedProjects };
+    });
+  },
+
+  updateCustomTable: (tableId, rowIndex, colIndex, value) => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      const updatedTables = (state.activeProject.customTables || []).map(table => {
+        if (table.id !== tableId) return table;
+        const newData = [...table.data];
+        const newRow = [...newData[rowIndex]];
+        newRow[colIndex] = value;
+        newData[rowIndex] = newRow;
+        return { ...table, data: newData };
+      });
+      const updatedProject = { ...state.activeProject, customTables: updatedTables };
+      const updatedProjects = state.projects.map((p) => p.id === updatedProject.id ? updatedProject : p);
+      saveToLocalStorage(updatedProjects);
+      return { activeProject: updatedProject, projects: updatedProjects };
+    });
+  },
+
+  updateCustomTableSize: (tableId, newRows, newCols) => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      const updatedTables = (state.activeProject.customTables || []).map(table => {
+        if (table.id !== tableId) return table;
+        
+        let newData = [...table.data];
+        // adjust rows
+        if (newRows > table.rows) {
+          for (let i = table.rows; i < newRows; i++) {
+            newData.push(Array(newCols).fill(''));
+          }
+        } else if (newRows < table.rows) {
+          newData = newData.slice(0, newRows);
+        }
+
+        // adjust cols for all rows
+        if (newCols !== table.cols) {
+          newData = newData.map(row => {
+            let r = [...row];
+            if (newCols > table.cols) {
+              for (let i = table.cols; i < newCols; i++) r.push('');
+            } else {
+              r = r.slice(0, newCols);
+            }
+            return r;
+          });
+        }
+
+        return { ...table, rows: newRows, cols: newCols, data: newData };
+      });
+      const updatedProject = { ...state.activeProject, customTables: updatedTables };
+      const updatedProjects = state.projects.map((p) => p.id === updatedProject.id ? updatedProject : p);
+      saveToLocalStorage(updatedProjects);
+      return { activeProject: updatedProject, projects: updatedProjects };
+    });
+  },
+
+  deleteCustomTable: (tableId) => {
+    set((state) => {
+      if (!state.activeProject) return state;
+      const updatedTables = (state.activeProject.customTables || []).filter(t => t.id !== tableId);
+      const updatedProject = { ...state.activeProject, customTables: updatedTables };
+      const updatedProjects = state.projects.map((p) => p.id === updatedProject.id ? updatedProject : p);
+      saveToLocalStorage(updatedProjects);
+      return { activeProject: updatedProject, projects: updatedProjects };
     });
   }
 

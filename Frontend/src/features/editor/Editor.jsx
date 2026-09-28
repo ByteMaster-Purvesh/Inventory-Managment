@@ -243,7 +243,7 @@ export const Editor = () => {
 
         <PanelGroup orientation="horizontal" className="flex-1">
           {/* Left Pane */}
-          <Panel defaultSize={20} minSize={10} className="border-r border-[#2b2b2b] bg-[#1e1e1e] flex flex-col h-full">
+          <Panel defaultSize={20} minSize={10} maxSize={380} className="border-r border-[#2b2b2b] bg-[#1e1e1e] flex flex-col h-full">
             {activeSidebarTab === 'projects' ? (
               <>
                 <div className="p-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider flex justify-between items-center group">
@@ -544,7 +544,7 @@ export const Editor = () => {
           </PanelResizeHandle>
 
           {/* Center Pane - Editor & Preview */}
-          <Panel defaultSize={60} minSize={30} className="flex flex-col min-w-0 bg-[#1e1e1e] h-full">
+          <Panel defaultSize={80} minSize={30} className="flex flex-col min-w-0 bg-[#1e1e1e] h-full">
           {!activeProject ? (
             <div className="flex-1 flex items-center justify-center text-zinc-500">
               <div className="text-center">

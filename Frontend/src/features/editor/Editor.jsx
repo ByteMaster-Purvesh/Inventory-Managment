@@ -626,17 +626,17 @@ export const Editor = () => {
                 </div>
               </div>
               
-              <PanelGroup direction="horizontal" className="flex-1 relative flex min-h-0 bg-[#1e1e1e]">
+              <PanelGroup direction="vertical" orientation="vertical" className="flex-1 relative flex flex-col min-h-0 bg-[#1e1e1e]">
                 <Panel defaultSize={showLivePreview ? 60 : 100} minSize={30} className="flex flex-col min-h-0 relative">
                   <InputPane onLivePreviewClick={() => setShowLivePreview(prev => !prev)} />
                 </Panel>
                 
                 {showLivePreview && (
                   <>
-                    <PanelResizeHandle className="w-1 bg-[#2b2b2b] hover:bg-orange-500 transition-colors focus:bg-orange-500 cursor-col-resize relative flex items-center justify-center shrink-0 group z-10">
-                      <div className="h-8 w-1 rounded-full bg-zinc-600 group-hover:bg-zinc-300 transition-colors"></div>
+                    <PanelResizeHandle className="h-1 bg-[#2b2b2b] hover:bg-orange-500 transition-colors focus:bg-orange-500 cursor-row-resize relative flex items-center justify-center shrink-0 group z-10">
+                      <div className="w-8 h-1 rounded-full bg-zinc-600 group-hover:bg-zinc-300 transition-colors"></div>
                     </PanelResizeHandle>
-                    <Panel defaultSize={40} minSize={20} className="flex flex-col bg-[#1e1e1e] border-l border-[#2b2b2b]">
+                    <Panel defaultSize={40} minSize={20} className="flex flex-col bg-[#1e1e1e] border-t border-[#2b2b2b]">
                       <PreviewPane onClose={() => setShowLivePreview(false)} />
                     </Panel>
                   </>

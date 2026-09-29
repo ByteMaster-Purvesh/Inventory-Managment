@@ -376,16 +376,12 @@ export const PreviewPane = ({ onClose }) => {
       );
   
       if (outOfTolRows.length > 0) {
-        validRows.push({
-          type: 'component_header',
-          id: `header-${comp.id}`,
-          name: comp.componentsName || 'Untitled Component',
-          jobCount: outOfTolRows[0]?.observations.length || 1,
-        });
-        outOfTolRows.forEach(r => {
+        outOfTolRows.forEach((r, idx) => {
           validRows.push({
             type: 'data_row',
             ...r,
+            isFirstOfComponent: idx === 0,
+            componentName: comp.componentsName || 'Untitled Component',
             jobCount: r.observations.length
           });
         });
@@ -659,7 +655,45 @@ export const PreviewPane = ({ onClose }) => {
             >
               <div className="shrink-0">
               {/* Header Section */}
-              {pageIndex === 0 ? (
+              {previewMode === 'snagsheet' ? (
+                <div className="border border-black mb-1 text-[12px] font-bold">
+                   <div className="flex border-b border-black text-center justify-center p-1 text-[14px]">
+                      Supplier Name : {activeProject.supplierName || 'PRECITECH ENGINEERING WORKS'}
+                   </div>
+                   <div className="flex border-b border-black">
+                      <div className="w-3/4 flex justify-center items-center border-r border-black p-1">
+                         SNAG SHEET
+                      </div>
+                      <div className="w-1/4 p-1 flex items-center">
+                         Page no. {pageIndex + 1} of {pages.length}
+                      </div>
+                   </div>
+                   <div className="flex border-b border-black">
+                      <div className="w-1/2 border-r border-black p-1">
+                         <InteractiveField tabName="Form" fieldId="input-field-drgNo">Drawing no. :- {activeProject.drgNo}</InteractiveField>
+                      </div>
+                      <div className="w-1/2 p-1">
+                         Snag sheet no. :- {activeProject.snagSheetNo || 'PEW-269'} Date:- {activeProject.date}
+                      </div>
+                   </div>
+                   <div className="flex border-b border-black">
+                      <div className="w-1/2 border-r border-black p-1">
+                         Tool Description :- {activeProject.toolDescription || 'WELDING FIXTURE'}
+                      </div>
+                      <div className="w-1/2 p-1">
+                         <InteractiveField tabName="Form" fieldId="input-field-projectName">Project :- {activeProject.projectName}</InteractiveField>
+                      </div>
+                   </div>
+                   <div className="flex">
+                      <div className="w-1/2 border-r border-black p-1">
+                         Item code no. :- {activeProject.itemCodeNo || ''}
+                      </div>
+                      <div className="w-1/2 p-1">
+                         <InteractiveField tabName="Form" fieldId="input-field-poNo">PO no. :- {activeProject.poNo}</InteractiveField>
+                      </div>
+                   </div>
+                </div>
+              ) : pageIndex === 0 ? (
                 <div className="border border-black mb-1 text-[10px]">
                   {/* Row 1: Logo and Title */}
                   <div className="flex border-b border-black h-[65px]">
@@ -840,7 +874,50 @@ export const PreviewPane = ({ onClose }) => {
               )}
 
               {/* Main Data Table */}
-              <table className="w-full border-collapse border border-black text-center table-fixed text-[10px]">
+              {previewMode === 'snagsheet' ? (
+                <table className="w-full border-collapse border border-black text-center table-fixed text-[12px]">
+                   <thead>
+                      <tr className="bg-white">
+                         <th className="border border-black p-1 font-bold" style={{ width: '25%' }}>Description & Item no.</th>
+                         <th className="border border-black p-1 font-bold" style={{ width: '10%' }}>Ballon<br/>no.</th>
+                         <th className="border border-black p-1 font-bold" style={{ width: '20%' }}>Dimension with<br/>tolerance</th>
+                         <th className="border border-black p-1 font-bold" style={{ width: '20%' }}>Observed dimension</th>
+                         <th className="border border-black p-1 font-bold" style={{ width: '25%' }}>Remarks / Recommendations By Godrej Design</th>
+                      </tr>
+                   </thead>
+                   <tbody>
+                      {pageRows.length === 0 ? (
+                         <tr className="bg-white">
+                            <td colSpan={5} className="border border-black p-4 text-center">
+                               No snags found in this project.
+                            </td>
+                         </tr>
+                      ) : pageRows.map((row) => (
+                         <InteractiveRow key={row.id} row={row}>
+                            <td className="border border-black p-1 text-left px-2">{row.isFirstOfComponent ? row.componentName : ''}</td>
+                            <td className="border border-black p-1">{row.srNo}</td>
+                            <td className="border border-black p-1">
+                               {`${row.places ? `${row.places} X ` : ''}${row.drawingSizeSymbol ? `${row.drawingSizeSymbol} ` : ''}${row.drawingSize || ''} ${row.calculatedTolerance !== '-' ? row.calculatedTolerance : row.toleranceVal || ''}`.trim()}
+                            </td>
+                            <td className="border border-black p-1">
+                               {row.observations.filter(o => o !== undefined && o !== '' && checkIsOutOfTolerance(row.calculatedTolerance, o)).join(' / ')}
+                            </td>
+                            <td className="border border-black p-1"></td>
+                         </InteractiveRow>
+                      ))}
+                      {Array.from({ length: Math.max(0, (pageIndex === 0 ? FIRST_PAGE_ROWS : OTHER_PAGE_ROWS) - pageRows.length) }).map((_, i) => (
+                         <tr key={`empty-${i}`} className="h-[28px]">
+                            <td className="border border-black p-1"></td>
+                            <td className="border border-black p-1"></td>
+                            <td className="border border-black p-1"></td>
+                            <td className="border border-black p-1"></td>
+                            <td className="border border-black p-1"></td>
+                         </tr>
+                      ))}
+                   </tbody>
+                </table>
+              ) : (
+                <table className="w-full border-collapse border border-black text-center table-fixed text-[10px]">
                 <thead>
                   <tr className="bg-slate-50">
                     <th className="border border-black p-1 font-semibold" style={{ width: '8%' }} rowSpan={2}>SR.<br/>NO.</th>
@@ -917,9 +994,17 @@ export const PreviewPane = ({ onClose }) => {
                   ))}
                 </tbody>
               </table>
+              )}
               </div>
 
               {/* Footer Section */}
+              {previewMode === 'snagsheet' ? (
+                <div className="flex justify-between items-end mt-12 px-4 font-bold text-[12px]">
+                   <div>Sign & Stamp of Supplier</div>
+                   <div>Sign of Godrej QC</div>
+                   <div>Sign of Godrej Design</div>
+                </div>
+              ) : (
               <div className="border border-black border-t-0 flex flex-col text-[10px]">
                 <div className="border-b border-black p-1 h-[30px]">
                   Remarks : {activeProject.remarks}
@@ -1139,6 +1224,7 @@ export const PreviewPane = ({ onClose }) => {
                   </div>
                 </div>
               </div>
+              )}
             </div>
           ))}
           </div>

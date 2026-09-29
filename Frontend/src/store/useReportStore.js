@@ -220,7 +220,7 @@ export const useReportStore = create((set, get) => ({
         toleranceVal: '',
         calculatedTolerance: '', // [min, max] or specific string
         places: '',
-        observations: [''], // Array for multiple jobs/components
+        observations: Array(state.activeProject.rows.length > 0 ? state.activeProject.rows[0].observations.length : 1).fill(''), // Array for multiple jobs/components
         instrument: '',
         instrumentNo: ''
       };

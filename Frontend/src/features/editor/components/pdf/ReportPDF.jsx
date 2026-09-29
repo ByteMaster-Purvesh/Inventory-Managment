@@ -346,28 +346,7 @@ export const ReportPDF = ({ project }) => {
         </Page>
       ))}
 
-      {/* Custom Tables Page */}
-      {(project.customTables && project.customTables.length > 0) && (
-        <Page size="A4" orientation="landscape" style={styles.page}>
-          <View style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {project.customTables.map((table, tIndex) => (
-              <View key={table.id} wrap={false} style={{ width: '100%' }}>
-                <View style={{ borderTopWidth: 1, borderLeftWidth: 1, borderColor: '#000' }}>
-                  {table.data.map((r, rIdx) => (
-                    <View key={rIdx} style={{ flexDirection: 'row' }}>
-                      {r.map((cell, cIdx) => (
-                        <View key={cIdx} style={{ flex: 1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: '#000', padding: 4, minHeight: 18 }}>
-                          <Text style={{ fontSize: settings.fontSize }}>{cell}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ))}
-          </View>
-        </Page>
-      )}
+
     </Document>
   );
 };

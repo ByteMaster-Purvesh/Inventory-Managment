@@ -69,76 +69,6 @@ const InstrumentCombobox = ({ value, onChange }) => {
   );
 };
 
-const TableCreatorGrid = ({ onTableCreate }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [hoveredRow, setHoveredRow] = useState(-1);
-  const [hoveredCol, setHoveredCol] = useState(-1);
-  const wrapperRef = useRef(null);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const MAX_ROWS = 10;
-  const MAX_COLS = 10;
-
-  return (
-    <div ref={wrapperRef} className="relative inline-block">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${isOpen ? 'bg-orange-500/20 text-orange-500' : 'text-zinc-200 hover:bg-zinc-800'}`}
-        title="Insert Table"
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
-        Table
-      </button>
-
-      {isOpen && (
-        <div className="absolute z-50 mt-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl p-3">
-          <div className="text-xs font-semibold text-zinc-300 mb-2 text-center">
-            {hoveredRow >= 0 && hoveredCol >= 0 
-              ? `${hoveredCol + 1}x${hoveredRow + 1} Table`
-              : 'Insert Table'
-            }
-          </div>
-          <div className="flex flex-col gap-1">
-            {Array.from({ length: MAX_ROWS }).map((_, rIndex) => (
-              <div key={rIndex} className="flex gap-1">
-                {Array.from({ length: MAX_COLS }).map((_, cIndex) => {
-                  const isHighlighted = rIndex <= hoveredRow && cIndex <= hoveredCol;
-                  return (
-                    <div
-                      key={cIndex}
-                      onMouseEnter={() => {
-                        setHoveredRow(rIndex);
-                        setHoveredCol(cIndex);
-                      }}
-                      onClick={() => {
-                        onTableCreate(rIndex + 1, cIndex + 1);
-                        setIsOpen(false);
-                      }}
-                      className={`w-4 h-4 border cursor-pointer transition-colors ${
-                        isHighlighted 
-                          ? 'border-orange-500 bg-orange-500/20' 
-                          : 'border-zinc-600 bg-zinc-700/50 hover:border-zinc-500'
-                      }`}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 export const InputPane = ({ onLivePreviewClick }) => {
   const activeTab = useReportStore((state) => state.activeInputTab);
@@ -160,10 +90,6 @@ export const InputPane = ({ onLivePreviewClick }) => {
   const updateProjectSettings = useReportStore((state) => state.updateProjectSettings);
   const reorderRows = useReportStore((state) => state.reorderRows);
   const updateActiveProject = useReportStore((state) => state.updateActiveProject);
-  const addCustomTable = useReportStore((state) => state.addCustomTable);
-  const updateCustomTable = useReportStore((state) => state.updateCustomTable);
-  const updateCustomTableSize = useReportStore((state) => state.updateCustomTableSize);
-  const deleteCustomTable = useReportStore((state) => state.deleteCustomTable);
 
   if (!activeProject) return null;
 
@@ -202,13 +128,17 @@ export const InputPane = ({ onLivePreviewClick }) => {
 
   const handleAddRow = () => {
     addRow();
+    // If the user is on a tall tab like Form, switch back to Home to ensure the row is visible
+    if (activeTab === 'Form') {
+      setActiveTab('Home');
+    }
     // Provide HCI feedback by scrolling to the newly added row
     setTimeout(() => {
-      const scrollContainer = document.querySelector('.flex-1.overflow-y-auto');
+      const scrollContainer = document.getElementById('rows-scroll-container');
       if (scrollContainer) {
         scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
       }
-    }, 50);
+    }, 100); // Increased slightly to ensure DOM has updated
   };
 
   const handleAddObservationColumn = () => {
@@ -243,54 +173,26 @@ export const InputPane = ({ onLivePreviewClick }) => {
   const handlePlacesChange = (row, newValue) => {
     const val = newValue.replace(/[^0-9]/g, '');
     updateRow(row.id, 'places', val);
-    
-    let ds = row.drawingSize || '';
-    const hasPlaces = ds.match(/^([=]?)\d+X\b/i);
-    
-    if (val) {
-      if (hasPlaces) {
-        ds = ds.replace(/^([=]?)\d+X\b/i, `$1${val}X`);
-      } else {
-        ds = `${val}X ` + ds;
-      }
-    } else {
-      if (hasPlaces) {
-        ds = ds.replace(/^[=]?\d+X[\s=]*/i, '');
-      }
-    }
-    updateRow(row.id, 'drawingSize', ds);
   };
 
   const handleToleranceChange = (row, newValue) => {
     updateRow(row.id, 'toleranceVal', newValue);
     
     let ds = row.drawingSize || '';
-    const hasTol = ds.match(/(?:±|\+|-|\+-)\s*\d+(\.\d+)?$/);
+    // Look for an operator (+, -, ±, +-) at the very end, OR an operator followed by numbers
+    const operatorMatch = ds.match(/(±|\+|-|\+-)\s*[\d.]*$/);
     
-    if (newValue) {
-      let valToAppend = newValue.trim();
-      if (hasTol) {
-        if (!/^(?:±|\+|-|\+-)/.test(valToAppend)) {
-          const oldSignMatch = hasTol[0].match(/^(?:±|\+|-|\+-)\s*/);
-          if (oldSignMatch) {
-            valToAppend = oldSignMatch[0].trim() + valToAppend;
-          } else {
-            valToAppend = '±' + valToAppend;
-          }
-        }
-        ds = ds.replace(/(?:±|\+|-|\+-)\s*\d+(\.\d+)?$/, valToAppend);
+    if (operatorMatch) {
+      // It ends with an operator (and maybe some old tolerance numbers).
+      // We replace that old part with the operator + the new tolerance.
+      if (newValue.trim() === '') {
+         // if tolerance is cleared, just keep the operator
+         ds = ds.replace(/(±|\+|-|\+-)\s*[\d.]*$/, `$1`);
       } else {
-        if (!/^(?:±|\+|-|\+-)/.test(valToAppend)) {
-          valToAppend = '±' + valToAppend;
-        }
-        ds = ds + valToAppend;
+         ds = ds.replace(/(±|\+|-|\+-)\s*[\d.]*$/, `$1${newValue.trim()}`);
       }
-    } else {
-      if (hasTol) {
-        ds = ds.replace(/(?:±|\+|-|\+-)\s*\d+(\.\d+)?$/, '');
-      }
+      updateRow(row.id, 'drawingSize', ds);
     }
-    updateRow(row.id, 'drawingSize', ds);
   };
 
   return (
@@ -444,20 +346,6 @@ export const InputPane = ({ onLivePreviewClick }) => {
                 </div>
               </div>
 
-              {/* Table Creator */}
-              <div className="flex items-center gap-2 pr-4 border-r border-zinc-800">
-                <TableCreatorGrid 
-                  onTableCreate={(r, c) => {
-                    addCustomTable(r, c);
-                    setTimeout(() => {
-                      const scrollContainer = document.querySelector('.flex-1.overflow-y-auto');
-                      if (scrollContainer) {
-                        scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
-                      }
-                    }, 100);
-                  }}
-                />
-              </div>
 
               {/* Image Upload */}
               <div className="flex items-center gap-3 pl-2">
@@ -566,10 +454,17 @@ export const InputPane = ({ onLivePreviewClick }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto hide-scrollbar p-4 space-y-4">
+      <div id="rows-scroll-container" className="flex-1 overflow-y-auto hide-scrollbar p-4 space-y-4">
         {activeProject.rows.length === 0 ? (
-          <div className="text-center text-zinc-400 mt-10">
-            No rows added yet. Click "Add Row" to start.
+          <div className="flex flex-col items-center justify-center text-zinc-400 mt-10 space-y-4">
+            <p>No rows added yet.</p>
+            <button 
+              onClick={handleAddRow}
+              className="flex items-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-4 py-2 rounded font-medium transition-colors shadow-sm"
+            >
+              <Plus size={18} />
+              Add First Row
+            </button>
           </div>
         ) : (
           activeProject.rows.map((row, index) => (
@@ -721,68 +616,6 @@ export const InputPane = ({ onLivePreviewClick }) => {
             </div>
           ))
         )}
-      </div>
-
-      {/* Render Custom Tables */}
-      <div className="flex-1 overflow-y-auto hide-scrollbar p-4 pt-0 space-y-4">
-        {(activeProject.customTables || []).map((table, tIndex) => (
-          <div key={table.id} className="bg-zinc-900 p-4 rounded-lg shadow-sm border border-zinc-800 space-y-3">
-            <div className="flex justify-between items-center pb-2 border-b border-zinc-800">
-              <span className="font-semibold text-orange-500">Custom Table {tIndex + 1} ({table.cols}x{table.rows})</span>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded">
-                  <button 
-                    onClick={() => updateCustomTableSize(table.id, Math.max(1, table.rows - 1), table.cols)}
-                    className="p-1 hover:text-red-500 text-zinc-400" title="Remove Row"
-                  >-</button>
-                  <span className="text-xs text-zinc-500">Rows</span>
-                  <button 
-                    onClick={() => updateCustomTableSize(table.id, table.rows + 1, table.cols)}
-                    className="p-1 hover:text-orange-500 text-zinc-400" title="Add Row"
-                  >+</button>
-                </div>
-                <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded">
-                  <button 
-                    onClick={() => updateCustomTableSize(table.id, table.rows, Math.max(1, table.cols - 1))}
-                    className="p-1 hover:text-red-500 text-zinc-400" title="Remove Col"
-                  >-</button>
-                  <span className="text-xs text-zinc-500">Cols</span>
-                  <button 
-                    onClick={() => updateCustomTableSize(table.id, table.rows, table.cols + 1)}
-                    className="p-1 hover:text-orange-500 text-zinc-400" title="Add Col"
-                  >+</button>
-                </div>
-                <button 
-                  onClick={() => deleteCustomTable(table.id)}
-                  className="text-zinc-500 hover:text-red-500 p-1 rounded ml-2 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <tbody>
-                  {table.data.map((r, rIndex) => (
-                    <tr key={rIndex}>
-                      {r.map((cellValue, cIndex) => (
-                        <td key={cIndex} className="p-1 border border-zinc-800">
-                          <input
-                            type="text"
-                            value={cellValue}
-                            onChange={(e) => updateCustomTable(table.id, rIndex, cIndex, e.target.value)}
-                            className="w-full min-w-[80px] bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-orange-500 text-zinc-200"
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );

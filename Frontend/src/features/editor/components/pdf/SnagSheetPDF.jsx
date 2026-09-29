@@ -1,6 +1,6 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
-import { checkIsOutOfTolerance } from '../../../../lib/calculations';
+import { checkIsOutOfTolerance, formatDimension } from '../../../../lib/calculations';
 
 const styles = StyleSheet.create({
   page: {
@@ -182,7 +182,7 @@ export const SnagSheetPDF = ({ activeProject, allProjects }) => {
                 <View key={row.id} style={styles.tableRow}>
                   <View style={[styles.td, { width: '25%', textAlign: 'left', paddingLeft: 6 }]}><Text>{row.isFirstOfComponent ? row.componentName : ''}</Text></View>
                   <View style={[styles.td, { width: '10%' }]}><Text>{row.srNo}</Text></View>
-                  <View style={[styles.td, { width: '20%' }]}><Text>{`${row.places ? `${row.places} X ` : ''}${row.drawingSizeSymbol ? `${row.drawingSizeSymbol} ` : ''}${row.drawingSize || ''} ${row.calculatedTolerance !== '-' ? row.calculatedTolerance : row.toleranceVal || ''}`.trim()}</Text></View>
+                  <View style={[styles.td, { width: '20%' }]}><Text>{formatDimension(row, true)}</Text></View>
                   <View style={[styles.td, { width: '20%' }]}><Text>{row.observations.filter(o => o !== undefined && o !== '' && checkIsOutOfTolerance(row.calculatedTolerance, o)).join(' / ')}</Text></View>
                   <View style={[styles.td, { width: '25%' }]}><Text></Text></View>
                 </View>

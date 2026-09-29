@@ -1,17 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useReportStore } from '../../../store/useReportStore';
 import { calculateTolerance } from '../../../lib/calculations';
-import { Trash2, GripVertical, Plus, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon, Settings2, Columns, Copy, Download, Eye } from 'lucide-react';
+import { Trash2, GripVertical, Plus, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon, Settings2, Columns, Copy, Download, Eye, X } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { ReportPDF } from './pdf/ReportPDF';
 
-const SYMBOLS = ['±', '+', '-', 'Ø', '°', '▼', '⊥', 'X', '▱', '⌯', '∥', '$'];
+const SYMBOLS = ['±', '+', '-', 'Ø', '°', '▼', '⊥', 'X', '▱', '⌯', '∥', '$', '◎'];
 const FONTS = ['Helvetica', 'Times-Roman', 'Courier', 'Arial', 'Calibri', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia', 'Palatino Linotype', 'Book Antiqua', 'Comic Sans MS', 'Impact', 'Lucida Console', 'Lucida Sans Unicode', 'Arial Black', 'Arial Narrow', 'MS Sans Serif', 'MS Serif', 'System', 'Terminal', 'Courier New'];
 const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 24];
 
 const InstrumentCombobox = ({ value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
+
+  const [customOptions, setCustomOptions] = useState(() => {
+    try {
+      const stored = localStorage.getItem('customInstruments');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -23,8 +32,23 @@ const InstrumentCombobox = ({ value, onChange }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const options = ["D VERNIER", "CMM", "PIN GAUGE", "SURFACE COMPARATOR", "VISUAL", "BOLT", "R GAUGE"];
+  const baseOptions = ["D VERNIER", "CMM", "PIN GAUGE", "SURFACE COMPARATOR", "VISUAL", "BOLT", "R GAUGE"];
+  const allOptions = [...baseOptions, ...customOptions];
+  const filterVal = (value || '').toLowerCase();
   
+  const filteredOptions = allOptions.filter(opt => opt.toLowerCase().includes(filterVal));
+  const exactMatch = allOptions.find(opt => opt.toLowerCase() === filterVal);
+
+  const handleAddCustom = () => {
+    if (value && value.trim() && !exactMatch) {
+      const updated = [...customOptions, value.trim().toUpperCase()];
+      setCustomOptions(updated);
+      localStorage.setItem('customInstruments', JSON.stringify(updated));
+      onChange(value.trim().toUpperCase());
+      setIsOpen(false);
+    }
+  };
+
   return (
     <div ref={wrapperRef} className="relative w-full">
       <div className="relative">
@@ -37,7 +61,7 @@ const InstrumentCombobox = ({ value, onChange }) => {
           }}
           onFocus={() => setIsOpen(true)}
           placeholder="e.g. D VERNIER"
-          className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-1.5 pr-8 text-sm focus:outline-none focus:border-orange-500 text-zinc-200"
+          className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-1.5 pr-8 text-sm focus:outline-none focus:border-orange-500 text-zinc-200 cursor-pointer"
         />
         <div 
           className="absolute inset-y-0 right-0 flex items-center px-2 cursor-pointer text-zinc-500 hover:text-zinc-300"
@@ -48,7 +72,7 @@ const InstrumentCombobox = ({ value, onChange }) => {
       </div>
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded shadow-xl max-h-48 overflow-y-auto hide-scrollbar">
-          {options.filter(opt => opt.toLowerCase().includes((value||'').toLowerCase())).map(opt => (
+          {filteredOptions.map(opt => (
             <div 
               key={opt}
               onClick={() => {
@@ -60,7 +84,16 @@ const InstrumentCombobox = ({ value, onChange }) => {
               {opt}
             </div>
           ))}
-          {options.filter(opt => opt.toLowerCase().includes((value||'').toLowerCase())).length === 0 && (
+          {value && value.trim() && !exactMatch && (
+            <div 
+              onClick={handleAddCustom}
+              className="px-3 py-2 text-sm text-orange-400 hover:bg-orange-500 hover:text-white cursor-pointer transition-colors font-medium border-t border-zinc-700 flex justify-between items-center"
+            >
+              <span>Add "{value.trim().toUpperCase()}"</span>
+              <Plus size={14} />
+            </div>
+          )}
+          {!value && filteredOptions.length === 0 && (
             <div className="px-3 py-2 text-sm text-zinc-500 italic">No matches...</div>
           )}
         </div>
@@ -76,7 +109,16 @@ export const InputPane = ({ onLivePreviewClick }) => {
   const fileInputRef = useRef(null);
   const [draggedRowIndex, setDraggedRowIndex] = useState(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-
+  const [customSymbols, setCustomSymbols] = useState(() => {
+    try {
+      const stored = localStorage.getItem('customSymbols');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isAddingSymbol, setIsAddingSymbol] = useState(false);
+  const [newSymbolValue, setNewSymbolValue] = useState('');
   const activeProject = useReportStore((state) => state.activeProject);
   const activeRowId = useReportStore((state) => state.activeRowId);
   const addRow = useReportStore((state) => state.addRow);
@@ -95,6 +137,22 @@ export const InputPane = ({ onLivePreviewClick }) => {
 
   const settings = activeProject.settings || {
     fontFamily: 'Helvetica', fontSize: 11, isBold: false, isItalic: false, textAlign: 'left', logoUrl: null
+  };
+
+  const handleAddCustomSymbol = () => {
+    if (newSymbolValue.trim()) {
+      const updated = [...customSymbols, newSymbolValue.trim()];
+      setCustomSymbols(updated);
+      localStorage.setItem('customSymbols', JSON.stringify(updated));
+      setNewSymbolValue('');
+      setIsAddingSymbol(false);
+    }
+  };
+
+  const handleRemoveCustomSymbol = (sym) => {
+    const updated = customSymbols.filter(s => s !== sym);
+    setCustomSymbols(updated);
+    localStorage.setItem('customSymbols', JSON.stringify(updated));
   };
 
   const handleLogoUpload = (e) => {
@@ -154,20 +212,6 @@ export const InputPane = ({ onLivePreviewClick }) => {
 
   const handleDrawingSizeChange = (row, newValue) => {
     updateRow(row.id, 'drawingSize', newValue);
-
-    const placesMatch = newValue.match(/^([=]?)(\d+)X\b/i);
-    if (placesMatch) {
-      updateRow(row.id, 'places', placesMatch[2]);
-    } else {
-      updateRow(row.id, 'places', '');
-    }
-
-    const tolMatch = newValue.match(/(?:±|\+|-|\+-)\s*\d+(\.\d+)?$/);
-    if (tolMatch) {
-      updateRow(row.id, 'toleranceVal', tolMatch[0].trim());
-    } else {
-      updateRow(row.id, 'toleranceVal', '');
-    }
   };
 
   const handlePlacesChange = (row, newValue) => {
@@ -177,22 +221,6 @@ export const InputPane = ({ onLivePreviewClick }) => {
 
   const handleToleranceChange = (row, newValue) => {
     updateRow(row.id, 'toleranceVal', newValue);
-    
-    let ds = row.drawingSize || '';
-    // Look for an operator (+, -, ±, +-) at the very end, OR an operator followed by numbers
-    const operatorMatch = ds.match(/(±|\+|-|\+-)\s*[\d.]*$/);
-    
-    if (operatorMatch) {
-      // It ends with an operator (and maybe some old tolerance numbers).
-      // We replace that old part with the operator + the new tolerance.
-      if (newValue.trim() === '') {
-         // if tolerance is cleared, just keep the operator
-         ds = ds.replace(/(±|\+|-|\+-)\s*[\d.]*$/, `$1`);
-      } else {
-         ds = ds.replace(/(±|\+|-|\+-)\s*[\d.]*$/, `$1${newValue.trim()}`);
-      }
-      updateRow(row.id, 'drawingSize', ds);
-    }
   };
 
   return (
@@ -343,6 +371,70 @@ export const InputPane = ({ onLivePreviewClick }) => {
                       {sym}
                     </button>
                   ))}
+                  {customSymbols.map((sym, i) => (
+                    <button
+                      key={`custom-${sym}-${i}`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        if (activeRowId) {
+                          const row = activeProject.rows.find(r => r.id === activeRowId);
+                          if (row) {
+                            updateRow(activeRowId, 'drawingSize', (row.drawingSize || '') + ' ' + sym + ' ');
+                            setTimeout(() => {
+                              document.getElementById(`drawing-size-${activeRowId}`)?.focus();
+                            }, 0);
+                          }
+                        }
+                      }}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (confirm(`Remove custom symbol '${sym}'?`)) {
+                          handleRemoveCustomSymbol(sym);
+                        }
+                      }}
+                      disabled={!activeRowId}
+                      className={`w-7 h-7 flex items-center justify-center text-sm rounded border ${
+                        activeRowId 
+                          ? 'bg-zinc-800 border-zinc-600 hover:border-orange-500 hover:bg-orange-500/10 text-zinc-100 shadow-sm' 
+                          : 'bg-transparent border-zinc-800 text-zinc-500 cursor-not-allowed'
+                      }`}
+                      title={`Insert ${sym} (Right click to remove)`}
+                    >
+                      {sym}
+                    </button>
+                  ))}
+                  {isAddingSymbol ? (
+                    <form 
+                      onSubmit={(e) => { e.preventDefault(); handleAddCustomSymbol(); }}
+                      className="flex items-center gap-1"
+                    >
+                      <input 
+                        autoFocus
+                        type="text" 
+                        value={newSymbolValue} 
+                        onChange={e => setNewSymbolValue(e.target.value)}
+                        onBlur={() => {
+                          if (!newSymbolValue.trim()) setIsAddingSymbol(false);
+                        }}
+                        className="w-14 h-7 bg-zinc-900 border border-orange-500 rounded px-1 text-xs text-center text-zinc-200 outline-none"
+                        placeholder="Sym"
+                      />
+                      <button 
+                        type="submit"
+                        className="w-7 h-7 flex items-center justify-center bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </form>
+                  ) : (
+                    <button
+                      onClick={() => setIsAddingSymbol(true)}
+                      className="w-7 h-7 flex items-center justify-center text-zinc-400 border border-dashed border-zinc-600 rounded hover:text-orange-500 hover:border-orange-500 transition-colors"
+                      title="Add Custom Symbol"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -511,7 +603,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                 </button>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 {/* Drawing Size */}
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-zinc-400">DRAWING SIZE</label>
@@ -522,23 +614,83 @@ export const InputPane = ({ onLivePreviewClick }) => {
                       maxLength={30}
                       value={row.drawingSize || ''}
                       onChange={(e) => handleDrawingSizeChange(row, e.target.value)}
-                      placeholder="e.g. ± 30"
+                      placeholder="e.g. 45.23"
                       className="flex-1 border border-zinc-700 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-transparent text-zinc-200"
                     />
                   </div>
                 </div>
 
-                {/* Tolerance */}
+                {/* Tolerances */}
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-zinc-400">TOLERANCE (Input)</label>
-                  <input
-                    type="text"
-                    maxLength={15}
-                    value={row.toleranceVal || ''}
-                    onChange={(e) => handleToleranceChange(row, e.target.value)}
-                    placeholder="e.g. 0.2"
-                    className="w-full border border-zinc-700 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-transparent text-zinc-200"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-zinc-400">TOLERANCE</label>
+                    {!row.hasSecondTolerance && (
+                      <button 
+                        onClick={() => updateRow(row.id, 'hasSecondTolerance', true)}
+                        className="text-[10px] text-orange-500 hover:text-orange-400 flex items-center gap-1"
+                        title="Add second tolerance"
+                      >
+                        <Plus size={10} /> Add
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* First Tolerance */}
+                  <div className="flex gap-1">
+                    <select
+                      value={row.drawingSizeSymbol || ''}
+                      onChange={(e) => updateRow(row.id, 'drawingSizeSymbol', e.target.value)}
+                      className="w-12 border border-zinc-700 rounded px-1 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-zinc-800 text-zinc-200 cursor-pointer text-center"
+                    >
+                      <option value="">-</option>
+                      <option value="±">±</option>
+                      <option value="+">+</option>
+                      <option value="-">-</option>
+                    </select>
+                    <input
+                      type="text"
+                      maxLength={15}
+                      value={row.toleranceVal || ''}
+                      onChange={(e) => handleToleranceChange(row, e.target.value)}
+                      placeholder="e.g. 0.2"
+                      className="flex-1 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-transparent text-zinc-200"
+                    />
+                  </div>
+
+                  {/* Second Tolerance */}
+                  {row.hasSecondTolerance && (
+                    <div className="flex gap-1 mt-1 relative">
+                      <select
+                        value={row.drawingSizeSymbol2 || ''}
+                        onChange={(e) => updateRow(row.id, 'drawingSizeSymbol2', e.target.value)}
+                        className="w-12 border border-zinc-700 rounded px-1 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-zinc-800 text-zinc-200 cursor-pointer text-center"
+                      >
+                        <option value="">-</option>
+                        <option value="±">±</option>
+                        <option value="+">+</option>
+                        <option value="-">-</option>
+                      </select>
+                      <input
+                        type="text"
+                        maxLength={15}
+                        value={row.toleranceVal2 || ''}
+                        onChange={(e) => updateRow(row.id, 'toleranceVal2', e.target.value)}
+                        placeholder="e.g. 0.1"
+                        className="flex-1 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-transparent text-zinc-200 pr-6"
+                      />
+                      <button 
+                        onClick={() => {
+                          updateRow(row.id, 'hasSecondTolerance', false);
+                          updateRow(row.id, 'drawingSizeSymbol2', '');
+                          updateRow(row.id, 'toleranceVal2', '');
+                        }}
+                        className="absolute right-2 top-1.5 text-zinc-500 hover:text-red-400"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                  
                   <div className="text-[10px] text-zinc-500 text-right mt-1">
                     Calc: {row.calculatedTolerance || '-'}
                   </div>
@@ -603,7 +755,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                       <div className="text-[10px] text-zinc-500 mb-1 text-center">Job {idx + 1}</div>
                       <input
                         type="text"
-                        maxLength={6}
+                        maxLength={8}
                         value={obs}
                         onChange={(e) => updateObservation(row.id, idx, e.target.value)}
                         className="w-full text-center border border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-orange-500"

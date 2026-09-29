@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useReportStore } from '../../../store/useReportStore';
-import { checkIsOutOfTolerance } from '../../../lib/calculations';
+import { checkIsOutOfTolerance, formatDimension } from '../../../lib/calculations';
 import { ZoomIn, ZoomOut, Maximize, Trash2, Copy, FlipHorizontal, Files, Hand, MousePointer2, ChevronUp, ChevronDown, RotateCw, Download, Share2, X } from "lucide-react";
 import { Rnd } from "react-rnd";
 import { PDFDownloadLink, pdf } from '@react-pdf/renderer';
@@ -897,7 +897,7 @@ export const PreviewPane = ({ onClose }) => {
                             <td className="border border-black p-1 text-left px-2">{row.isFirstOfComponent ? row.componentName : ''}</td>
                             <td className="border border-black p-1">{row.srNo}</td>
                             <td className="border border-black p-1">
-                               {`${row.places ? `${row.places} X ` : ''}${row.drawingSizeSymbol ? `${row.drawingSizeSymbol} ` : ''}${row.drawingSize || ''} ${row.calculatedTolerance !== '-' ? row.calculatedTolerance : row.toleranceVal || ''}`.trim()}
+                               {formatDimension(row, true)}
                             </td>
                             <td className="border border-black p-1">
                                {row.observations.filter(o => o !== undefined && o !== '' && checkIsOutOfTolerance(row.calculatedTolerance, o)).join(' / ')}
@@ -957,7 +957,7 @@ export const PreviewPane = ({ onClose }) => {
                       <InteractiveRow key={row.id} row={row}>
                         <td className="border border-black p-1">{row.srNo}</td>
                         <td className="border border-black p-1 break-words">
-                          {(row.places || row.drawingSizeSymbol || row.drawingSize) ? `${row.places ? `${row.places} X ` : ''}${row.drawingSizeSymbol ? `${row.drawingSizeSymbol} ` : ''}${row.drawingSize || ''}`.trim() : '-'}
+                          {(row.places || row.drawingSizeSymbol || row.drawingSize) ? formatDimension(row, false) : '-'}
                         </td>
                         <td className="border border-black p-1">
                           {row.calculatedTolerance !== '-' ? row.calculatedTolerance : row.toleranceVal || '-'}

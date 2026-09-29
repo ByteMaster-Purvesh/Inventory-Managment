@@ -301,10 +301,13 @@ export const useReportStore = create((set, get) => ({
         let updatedRow = { ...row, [field]: value };
         
         // If drawing size or tolerance values change, recalculate the tolerance string
-        if (field === 'drawingSize' || field === 'toleranceVal') {
+        if (field === 'drawingSize' || field === 'toleranceVal' || field === 'drawingSizeSymbol' || field === 'toleranceVal2' || field === 'drawingSizeSymbol2') {
            updatedRow.calculatedTolerance = calculateTolerance(
              updatedRow.drawingSize, 
-             updatedRow.toleranceVal
+             updatedRow.toleranceVal,
+             updatedRow.drawingSizeSymbol,
+             updatedRow.toleranceVal2,
+             updatedRow.drawingSizeSymbol2
            );
         }
         
@@ -329,7 +332,9 @@ export const useReportStore = create((set, get) => ({
         return { ...row, observations: newObs };
       });
       const updatedProject = { ...state.activeProject, rows: updatedRows };
-      return { activeProject: updatedProject };
+      const updatedProjects = state.projects.map((p) => p.id === updatedProject.id ? updatedProject : p);
+      saveToLocalStorage(updatedProjects);
+      return { activeProject: updatedProject, projects: updatedProjects };
     });
   },
 
@@ -341,7 +346,9 @@ export const useReportStore = create((set, get) => ({
         observations: [...row.observations, '']
       }));
       const updatedProject = { ...state.activeProject, rows: updatedRows };
-      return { activeProject: updatedProject };
+      const updatedProjects = state.projects.map((p) => p.id === updatedProject.id ? updatedProject : p);
+      saveToLocalStorage(updatedProjects);
+      return { activeProject: updatedProject, projects: updatedProjects };
     });
   },
   
@@ -353,7 +360,9 @@ export const useReportStore = create((set, get) => ({
         observations: row.observations.length > 1 ? row.observations.slice(0, -1) : row.observations
       }));
       const updatedProject = { ...state.activeProject, rows: updatedRows };
-      return { activeProject: updatedProject };
+      const updatedProjects = state.projects.map((p) => p.id === updatedProject.id ? updatedProject : p);
+      saveToLocalStorage(updatedProjects);
+      return { activeProject: updatedProject, projects: updatedProjects };
     });
   },
 

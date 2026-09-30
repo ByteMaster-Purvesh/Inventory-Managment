@@ -32,15 +32,26 @@ const InteractiveField = ({ tabName, fieldId, children, className = "p-1" }) => 
 
 const InteractiveRow = ({ row, children, className }) => {
   const setActiveInputTab = useReportStore((state) => state.setActiveInputTab);
+  const setActiveProject = useReportStore((state) => state.setActiveProject);
+  const activeProject = useReportStore((state) => state.activeProject);
+
   const handleClick = (e) => {
     e.stopPropagation();
+    
+    if (row.projectId && activeProject && row.projectId !== activeProject.id) {
+      setActiveProject(row.projectId);
+    }
+    
     setActiveInputTab('Data');
+    
     setTimeout(() => {
       const element = document.getElementById(`input-row-${row.id}`);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('bg-orange-500/20');
+        setTimeout(() => element.classList.remove('bg-orange-500/20'), 2000);
       }
-    }, 100);
+    }, 150);
   };
   return (
     <tr 
@@ -382,7 +393,8 @@ export const PreviewPane = ({ onClose }) => {
             ...r,
             isFirstOfComponent: idx === 0,
             componentName: comp.componentsName || 'Untitled Component',
-            jobCount: r.observations.length
+            jobCount: r.observations.length,
+            projectId: comp.id
           });
         });
       }

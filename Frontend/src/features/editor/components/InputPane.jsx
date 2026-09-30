@@ -160,6 +160,14 @@ const InstrumentCombobox = ({ value, onChange }) => {
 export const InputPane = ({ onLivePreviewClick }) => {
   const activeTab = useReportStore((state) => state.activeInputTab);
   const setActiveTab = useReportStore((state) => state.setActiveInputTab);
+  const previewMode = useReportStore((state) => state.previewMode);
+  
+  const [formTab, setFormTab] = useState(previewMode === 'snagsheet' ? 'snag' : 'inspection');
+  
+  useEffect(() => {
+    setFormTab(previewMode === 'snagsheet' ? 'snag' : 'inspection');
+  }, [previewMode]);
+
   const fileInputRef = useRef(null);
   const [draggedRowIndex, setDraggedRowIndex] = useState(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -541,59 +549,100 @@ export const InputPane = ({ onLivePreviewClick }) => {
           )}
 
           {activeTab === 'Form' && (
-            <div className="grid grid-cols-4 gap-4 w-full">
-              {[
-                { key: 'projectName', label: 'Project Name' },
-                { key: 'customer', label: 'Customer' },
-                { key: 'componentsName', label: 'Components Name' },
-                { key: 'date', label: 'Date' },
-                { key: 'projectNo', label: 'Project No' },
-                { key: 'productionOrderNo', label: 'Production Order No' },
-                { key: 'drgNo', label: 'Drg No' },
-                { key: 'revNo', label: 'Rev No' },
-                { key: 'inspectionReportNo', label: 'Inspection Report No' },
-                { key: 'asslySubAssly', label: 'Assly/Sub-assly' },
-                { key: 'qaPlanNo', label: 'QA Plan No' },
-                { key: 'inspectionStage', label: 'Inspection Stage' },
-                { key: 'poNo', label: 'P.O. No' },
-                { key: 'rawMaterialUsed', label: 'Raw Material' },
-                { key: 'quantity', label: 'Quantity' },
-                { key: 'rawMtrlIdnCtrlNo', label: 'Raw Mtrl Idn/Ctrl No' },
-                { key: 'identificationNos', label: 'Identification Nos' },
-                { key: 'rawMtrlInDrg', label: 'Raw Mtrl In Drg' },
-                { key: 'supplierName', label: 'Supplier Name' },
-                { key: 'rvNo', label: 'R.V. no' },
-                { key: 'remarks', label: 'Remarks' },
-                { key: 'designerRemarks', label: 'Designer Remarks' },
-              ].map(field => (
-                <div key={field.key} className="flex flex-col gap-1">
-                  <label className="text-xs text-zinc-400 font-medium">{field.label}</label>
-                  <input
-                    id={`input-field-${field.key}`}
-                    type="text"
-                    value={activeProject[field.key] || ''}
-                    onChange={(e) => updateActiveProject({ [field.key]: e.target.value })}
-                    className="border border-zinc-700 rounded px-2 py-1 text-sm w-full transition-all duration-300 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-                  />
-                </div>
-              ))}
-              <div className="flex flex-col gap-1 col-span-2">
-                <label className="text-xs text-zinc-400 font-medium">Supplier Stamp Image</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        updateActiveProject({ supplierStampUrl: reader.result });
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                  className="text-sm"
-                />
+            <div className="flex flex-col w-full gap-2">
+              <div className="flex gap-2 border-b border-zinc-700 pb-2">
+                <button
+                  onClick={() => setFormTab('inspection')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${formTab === 'inspection' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
+                >
+                  Inspection Report
+                </button>
+                <button
+                  onClick={() => setFormTab('snag')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${formTab === 'snag' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
+                >
+                  Snag Report Form
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-4 w-full mt-2">
+                {formTab === 'inspection' && [
+                  { key: 'projectName', label: 'Project Name' },
+                  { key: 'customer', label: 'Customer' },
+                  { key: 'componentsName', label: 'Components Name' },
+                  { key: 'date', label: 'Date' },
+                  { key: 'projectNo', label: 'Project No' },
+                  { key: 'productionOrderNo', label: 'Production Order No' },
+                  { key: 'drgNo', label: 'Drg No' },
+                  { key: 'revNo', label: 'Rev No' },
+                  { key: 'inspectionReportNo', label: 'Inspection Report No' },
+                  { key: 'asslySubAssly', label: 'Assly/Sub-assly' },
+                  { key: 'qaPlanNo', label: 'QA Plan No' },
+                  { key: 'inspectionStage', label: 'Inspection Stage' },
+                  { key: 'poNo', label: 'P.O. No' },
+                  { key: 'rawMaterialUsed', label: 'Raw Material' },
+                  { key: 'quantity', label: 'Quantity' },
+                  { key: 'rawMtrlIdnCtrlNo', label: 'Raw Mtrl Idn/Ctrl No' },
+                  { key: 'identificationNos', label: 'Identification Nos' },
+                  { key: 'rawMtrlInDrg', label: 'Raw Mtrl In Drg' },
+                  { key: 'supplierName', label: 'Supplier Name' },
+                  { key: 'rvNo', label: 'R.V. no' },
+                  { key: 'remarks', label: 'Remarks' },
+                  { key: 'designerRemarks', label: 'Designer Remarks' },
+                ].map(field => (
+                  <div key={field.key} className="flex flex-col gap-1">
+                    <label className="text-xs text-zinc-400 font-medium">{field.label}</label>
+                    <input
+                      id={`input-field-${field.key}`}
+                      type="text"
+                      value={activeProject[field.key] || ''}
+                      onChange={(e) => updateActiveProject({ [field.key]: e.target.value })}
+                      className="border border-zinc-700 rounded px-2 py-1 text-sm w-full transition-all duration-300 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                    />
+                  </div>
+                ))}
+                
+                {formTab === 'snag' && [
+                  { key: 'supplierName', label: 'Supplier Name' },
+                  { key: 'drgNo', label: 'Drawing No.' },
+                  { key: 'snagSheetNo', label: 'Snag Sheet No.' },
+                  { key: 'date', label: 'Date' },
+                  { key: 'toolDescription', label: 'Tool Description' },
+                  { key: 'projectName', label: 'Project Name' },
+                  { key: 'itemCodeNo', label: 'Item Code No.' },
+                  { key: 'poNo', label: 'P.O. No.' },
+                ].map(field => (
+                  <div key={field.key} className="flex flex-col gap-1">
+                    <label className="text-xs text-zinc-400 font-medium">{field.label}</label>
+                    <input
+                      id={`input-field-${field.key}`}
+                      type="text"
+                      value={activeProject[field.key] || ''}
+                      onChange={(e) => updateActiveProject({ [field.key]: e.target.value })}
+                      className="border border-zinc-700 rounded px-2 py-1 text-sm w-full transition-all duration-300 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                    />
+                  </div>
+                ))}
+
+                {formTab === 'inspection' && (
+                  <div className="flex flex-col gap-1 col-span-2">
+                    <label className="text-xs text-zinc-400 font-medium">Supplier Stamp Image</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            updateActiveProject({ supplierStampUrl: reader.result });
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="text-sm"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}

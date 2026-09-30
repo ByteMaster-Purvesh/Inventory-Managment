@@ -658,7 +658,7 @@ export const PreviewPane = ({ onClose }) => {
               {previewMode === 'snagsheet' ? (
                 <div className="border border-black mb-1 text-[12px] font-bold">
                    <div className="flex border-b border-black text-center justify-center p-1 text-[14px]">
-                      Supplier Name : {activeProject.supplierName || 'PRECITECH ENGINEERING WORKS'}
+                      <InteractiveField tabName="Form" fieldId="input-field-supplierName">Supplier Name : {activeProject.supplierName || 'PRECITECH ENGINEERING WORKS'}</InteractiveField>
                    </div>
                    <div className="flex border-b border-black">
                       <div className="w-3/4 flex justify-center items-center border-r border-black p-1">
@@ -672,13 +672,14 @@ export const PreviewPane = ({ onClose }) => {
                       <div className="w-1/2 border-r border-black p-1">
                          <InteractiveField tabName="Form" fieldId="input-field-drgNo">Drawing no. :- {activeProject.drgNo}</InteractiveField>
                       </div>
-                      <div className="w-1/2 p-1">
-                         Snag sheet no. :- {activeProject.snagSheetNo || 'PEW-269'} Date:- {activeProject.date}
+                      <div className="w-1/2 p-1 flex gap-2">
+                         <InteractiveField tabName="Form" fieldId="input-field-snagSheetNo">Snag sheet no. :- {activeProject.snagSheetNo || 'PEW-269'}</InteractiveField>
+                         <InteractiveField tabName="Form" fieldId="input-field-date">Date:- {activeProject.date}</InteractiveField>
                       </div>
                    </div>
                    <div className="flex border-b border-black">
                       <div className="w-1/2 border-r border-black p-1">
-                         Tool Description :- {activeProject.toolDescription || 'WELDING FIXTURE'}
+                         <InteractiveField tabName="Form" fieldId="input-field-toolDescription">Tool Description :- {activeProject.toolDescription || 'WELDING FIXTURE'}</InteractiveField>
                       </div>
                       <div className="w-1/2 p-1">
                          <InteractiveField tabName="Form" fieldId="input-field-projectName">Project :- {activeProject.projectName}</InteractiveField>
@@ -686,7 +687,7 @@ export const PreviewPane = ({ onClose }) => {
                    </div>
                    <div className="flex">
                       <div className="w-1/2 border-r border-black p-1">
-                         Item code no. :- {activeProject.itemCodeNo || ''}
+                         <InteractiveField tabName="Form" fieldId="input-field-itemCodeNo">Item code no. :- {activeProject.itemCodeNo || ''}</InteractiveField>
                       </div>
                       <div className="w-1/2 p-1">
                          <InteractiveField tabName="Form" fieldId="input-field-poNo">PO no. :- {activeProject.poNo}</InteractiveField>

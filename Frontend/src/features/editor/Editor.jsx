@@ -216,34 +216,24 @@ export const Editor = () => {
             <button 
               className={`p-2 transition-colors ${activeSidebarTab === 'projects' ? 'text-zinc-100 border-l-2 border-orange-500 -ml-0.5' : 'text-zinc-500 hover:text-zinc-100'}`}
               title="Collections/Projects"
-              onClick={() => setActiveSidebarTab('projects')}
+              onClick={() => setActiveSidebarTab(activeSidebarTab === 'projects' ? null : 'projects')}
             >
               <Folder size={20} />
             </button>
             <button 
               className={`p-2 transition-colors ${activeSidebarTab === 'search' ? 'text-zinc-100 border-l-2 border-orange-500 -ml-0.5' : 'text-zinc-500 hover:text-zinc-100'}`}
               title="Search"
-              onClick={() => setActiveSidebarTab('search')}
+              onClick={() => setActiveSidebarTab(activeSidebarTab === 'search' ? null : 'search')}
             >
               <Search size={20} />
-            </button>
-            <button className="p-2 text-zinc-500 hover:text-zinc-100 transition-colors" title="History">
-              <History size={20} />
-            </button>
-          </div>
-          <div className="mt-auto flex flex-col gap-4 mb-2">
-            <button className="p-2 text-zinc-500 hover:text-zinc-100 transition-colors" title="Settings">
-              <Settings size={20} />
-            </button>
-            <button className="p-2 text-zinc-500 hover:text-zinc-100 transition-colors" title="Account">
-              <User size={20} />
             </button>
           </div>
         </div>
 
         <PanelGroup orientation="horizontal" className="flex-1">
           {/* Left Pane */}
-          <Panel defaultSize={20} minSize={10} maxSize={380} className="border-r border-[#2b2b2b] bg-[#1e1e1e] flex flex-col h-full">
+          {activeSidebarTab && (
+            <Panel defaultSize={20} minSize={10} maxSize={380} className="border-r border-[#2b2b2b] bg-[#1e1e1e] flex flex-col h-full">
             {activeSidebarTab === 'projects' ? (
               <>
                 <div className="p-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider flex justify-between items-center group">
@@ -537,11 +527,14 @@ export const Editor = () => {
                 </div>
               </>
             )}
-          </Panel>
+            </Panel>
+          )}
 
-          <PanelResizeHandle className="w-1 bg-[#2b2b2b] hover:bg-orange-500 transition-colors focus:bg-orange-500 cursor-col-resize relative flex items-center justify-center shrink-0 group z-10">
-            <div className="h-8 w-1 rounded-full bg-zinc-600 group-hover:bg-zinc-300 transition-colors"></div>
-          </PanelResizeHandle>
+          {activeSidebarTab && (
+            <PanelResizeHandle className="w-1 bg-[#2b2b2b] hover:bg-orange-500 transition-colors focus:bg-orange-500 cursor-col-resize relative flex items-center justify-center shrink-0 group z-10">
+              <div className="h-8 w-1 rounded-full bg-zinc-600 group-hover:bg-zinc-300 transition-colors"></div>
+            </PanelResizeHandle>
+          )}
 
           {/* Center Pane - Editor & Preview */}
           <Panel defaultSize={80} minSize={30} className="flex flex-col min-w-0 bg-[#1e1e1e] h-full">

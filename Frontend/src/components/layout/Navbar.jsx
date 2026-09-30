@@ -21,10 +21,6 @@ export const Navbar = () => {
               <div className="w-2 h-2 rounded-full bg-green-500"></div>
               <span className="text-xs font-medium text-zinc-400">ABC Company</span>
             </div>
-            <div className="w-px h-4 bg-zinc-800"></div>
-            <button className="text-zinc-400 hover:text-zinc-200 transition-colors">
-              <UserCircle size={20} />
-            </button>
           </div>
         </div>
       </div>

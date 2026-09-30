@@ -667,7 +667,7 @@ export const Editor = () => {
                   >
                     <Panel 
                       defaultSize={showLivePreview ? (previewLayout === 'right' ? 48 : 60) : 100} 
-                      minSize={previewLayout === 'right' ? 48 : 80}
+                      minSize={previewLayout === 'right' ? 800 : 80}
                       className="flex flex-col min-h-0 relative"
                     >
                       <InputPane onLivePreviewClick={() => setShowLivePreview(prev => !prev)} />

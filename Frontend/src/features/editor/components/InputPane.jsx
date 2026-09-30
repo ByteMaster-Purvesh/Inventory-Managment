@@ -742,7 +742,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                     
                     <div className="col-span-4 mt-4">
                       <div 
-                        className="border-2 border-dashed border-zinc-600 rounded-lg p-10 min-h-[240px] flex flex-col items-center justify-center bg-zinc-800/50 hover:bg-zinc-800 transition-colors"
+                        className="border-2 border-dashed border-zinc-600 rounded-lg p-6 min-h-[120px] flex flex-col items-center justify-center bg-zinc-800/50 hover:bg-zinc-800 transition-colors"
                         onDragOver={(e) => {
                           e.preventDefault();
                           e.dataTransfer.dropEffect = 'copy';

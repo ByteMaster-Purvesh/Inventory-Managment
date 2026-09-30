@@ -276,7 +276,7 @@ export const Editor = () => {
         <PanelGroup orientation="horizontal" className="flex-1">
           {/* Left Pane */}
           {activeSidebarTab && (
-            <Panel defaultSize={20} minSize={10} maxSize={380} className="border-r border-[#2b2b2b] bg-[#1e1e1e] flex flex-col h-full">
+            <Panel defaultSize={80} minSize={0} maxSize={350} className="border-r border-[#2b2b2b] bg-[#1e1e1e] flex flex-col h-full">
               {activeSidebarTab === 'projects' ? (
                 <>
                   <div className="p-3 text-xs font-semibold text-zinc-400 uppercase tracking-wider flex justify-between items-center group">
@@ -582,7 +582,7 @@ export const Editor = () => {
           )}
 
           {/* Center Pane - Editor & Preview */}
-          <Panel defaultSize={80} minSize={30} className="flex flex-col min-w-0 bg-[#1e1e1e] h-full">
+          <Panel defaultSize={40} minSize={50} className="flex flex-col min-w-0 bg-[#1e1e1e] h-full">
             {!activeProject ? (
               <div className="flex-1 flex items-center justify-center text-zinc-500">
                 <div className="text-center">
@@ -655,7 +655,6 @@ export const Editor = () => {
                   })}
                 </div>
 
-
                 {showLivePreview && previewLayout === 'full' ? (
                   <div className="flex-1 flex flex-col min-h-0 bg-[#1e1e1e]">
                     <PreviewPane onClose={() => setShowLivePreview(false)} />
@@ -668,7 +667,7 @@ export const Editor = () => {
                   >
                     <Panel 
                       defaultSize={showLivePreview ? (previewLayout === 'right' ? 48 : 60) : 100} 
-                      minSize={previewLayout === 'right' ? 848 : 0}
+                      minSize={previewLayout === 'right' ? 48 : 80}
                       className="flex flex-col min-h-0 relative"
                     >
                       <InputPane onLivePreviewClick={() => setShowLivePreview(prev => !prev)} />
@@ -681,7 +680,6 @@ export const Editor = () => {
                         </PanelResizeHandle>
                         <Panel 
                           defaultSize={previewLayout === 'right' ? 52 : 40} 
-                          minSize={0}
                           className={`flex flex-col bg-[#1e1e1e] ${previewLayout === 'right' ? 'border-l' : 'border-t'} border-[#2b2b2b]`}
                         >
                           <PreviewPane onClose={() => setShowLivePreview(false)} />

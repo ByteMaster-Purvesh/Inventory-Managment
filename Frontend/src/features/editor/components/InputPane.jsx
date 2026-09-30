@@ -9,6 +9,60 @@ const SYMBOLS = ['±', '+', '-', 'Ø', '°', '▼', '⊥', 'X', '▱', '⌯', '�
 const FONTS = ['Helvetica', 'Times-Roman', 'Courier', 'Arial', 'Calibri', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia', 'Palatino Linotype', 'Book Antiqua', 'Comic Sans MS', 'Impact', 'Lucida Console', 'Lucida Sans Unicode', 'Arial Black', 'Arial Narrow', 'MS Sans Serif', 'MS Serif', 'System', 'Terminal', 'Courier New'];
 const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 24];
 
+const SymbolDropdown = ({ value, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const options = [
+    { label: 'None', value: '' },
+    { label: '±', value: '±' },
+    { label: '+', value: '+' },
+    { label: '-', value: '-' }
+  ];
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className={`w-[52px] h-[34px] border rounded px-1.5 flex items-center justify-between bg-zinc-800 text-zinc-200 cursor-pointer transition-colors ${isOpen ? 'border-orange-500' : 'border-zinc-700 hover:border-zinc-600'}`}
+      >
+        <span className="flex-1 text-center text-sm font-medium">{value || ' '}</span>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500 ml-0.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </div>
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-[#1e1e20] border border-zinc-700 rounded shadow-xl py-1 overflow-hidden">
+          {options.map((opt, i) => (
+            <div
+              key={i}
+              onClick={() => {
+                onChange(opt.value);
+                setIsOpen(false);
+              }}
+              className={`px-1 py-1.5 text-sm text-center cursor-pointer transition-colors hover:bg-orange-500 hover:text-white ${
+                value === opt.value 
+                  ? 'bg-orange-500/20 text-orange-500 font-medium' 
+                  : 'text-zinc-300'
+              }`}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const InstrumentCombobox = ({ value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef(null);
@@ -61,7 +115,7 @@ const InstrumentCombobox = ({ value, onChange }) => {
           }}
           onFocus={() => setIsOpen(true)}
           placeholder="e.g. D VERNIER"
-          className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-1.5 pr-8 text-sm focus:outline-none focus:border-orange-500 text-zinc-200 cursor-pointer"
+          className="w-full bg-transparent border border-zinc-700 rounded px-3 py-1.5 pr-8 text-sm focus:outline-none focus:border-orange-500 text-zinc-200 cursor-pointer"
         />
         <div 
           className="absolute inset-y-0 right-0 flex items-center px-2 cursor-pointer text-zinc-500 hover:text-zinc-300"
@@ -603,9 +657,9 @@ export const InputPane = ({ onLivePreviewClick }) => {
                 </button>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
                 {/* Drawing Size */}
-                <div className="space-y-1">
+                <div className="space-y-1 md:col-span-4">
                   <label className="text-xs font-medium text-zinc-400">DRAWING SIZE</label>
                   <div className="flex">
                     <input
@@ -621,13 +675,18 @@ export const InputPane = ({ onLivePreviewClick }) => {
                 </div>
 
                 {/* Tolerances */}
-                <div className="space-y-1">
+                <div className="space-y-1 md:col-span-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-zinc-400">TOLERANCE</label>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-zinc-400">TOLERANCE</label>
+                      <span className="text-[10px] text-zinc-500 font-medium bg-zinc-800/50 px-1.5 py-0.5 rounded" title="Calculated Tolerance">
+                        Calc: {row.calculatedTolerance || '-'}
+                      </span>
+                    </div>
                     {!row.hasSecondTolerance && (
                       <button 
                         onClick={() => updateRow(row.id, 'hasSecondTolerance', true)}
-                        className="text-[10px] text-orange-500 hover:text-orange-400 flex items-center gap-1"
+                        className="text-[10px] text-orange-500 hover:text-orange-400 flex items-center gap-1 font-medium bg-orange-500/10 hover:bg-orange-500/20 px-1.5 py-0.5 rounded transition-colors"
                         title="Add second tolerance"
                       >
                         <Plus size={10} /> Add
@@ -637,16 +696,10 @@ export const InputPane = ({ onLivePreviewClick }) => {
                   
                   {/* First Tolerance */}
                   <div className="flex gap-1">
-                    <select
+                    <SymbolDropdown
                       value={row.drawingSizeSymbol || ''}
-                      onChange={(e) => updateRow(row.id, 'drawingSizeSymbol', e.target.value)}
-                      className="w-12 border border-zinc-700 rounded px-1 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-zinc-800 text-zinc-200 cursor-pointer text-center"
-                    >
-                      <option value="">-</option>
-                      <option value="±">±</option>
-                      <option value="+">+</option>
-                      <option value="-">-</option>
-                    </select>
+                      onChange={(val) => updateRow(row.id, 'drawingSizeSymbol', val)}
+                    />
                     <input
                       type="text"
                       maxLength={15}
@@ -660,23 +713,17 @@ export const InputPane = ({ onLivePreviewClick }) => {
                   {/* Second Tolerance */}
                   {row.hasSecondTolerance && (
                     <div className="flex gap-1 mt-1 relative">
-                      <select
+                      <SymbolDropdown
                         value={row.drawingSizeSymbol2 || ''}
-                        onChange={(e) => updateRow(row.id, 'drawingSizeSymbol2', e.target.value)}
-                        className="w-12 border border-zinc-700 rounded px-1 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-zinc-800 text-zinc-200 cursor-pointer text-center"
-                      >
-                        <option value="">-</option>
-                        <option value="±">±</option>
-                        <option value="+">+</option>
-                        <option value="-">-</option>
-                      </select>
+                        onChange={(val) => updateRow(row.id, 'drawingSizeSymbol2', val)}
+                      />
                       <input
                         type="text"
                         maxLength={15}
                         value={row.toleranceVal2 || ''}
                         onChange={(e) => updateRow(row.id, 'toleranceVal2', e.target.value)}
                         placeholder="e.g. 0.1"
-                        className="flex-1 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-transparent text-zinc-200 pr-6"
+                        className="flex-1 border border-zinc-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-orange-500 bg-transparent text-zinc-200 pr-7"
                       />
                       <button 
                         onClick={() => {
@@ -684,20 +731,17 @@ export const InputPane = ({ onLivePreviewClick }) => {
                           updateRow(row.id, 'drawingSizeSymbol2', '');
                           updateRow(row.id, 'toleranceVal2', '');
                         }}
-                        className="absolute right-2 top-1.5 text-zinc-500 hover:text-red-400"
+                        className="absolute right-1 top-1.5 p-0.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                        title="Remove second tolerance"
                       >
                         <X size={14} />
                       </button>
                     </div>
                   )}
-                  
-                  <div className="text-[10px] text-zinc-500 text-right mt-1">
-                    Calc: {row.calculatedTolerance || '-'}
-                  </div>
                 </div>
 
                 {/* Places */}
-                <div className="space-y-1">
+                <div className="space-y-1 md:col-span-2">
                   <label className="text-xs font-medium text-zinc-400">PLACES</label>
                   <input
                     type="text"
@@ -710,7 +754,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                 </div>
 
                 {/* Instrument */}
-                <div className="space-y-1">
+                <div className="space-y-1 md:col-span-3">
                   <label className="text-xs font-medium text-zinc-400">INST. USED</label>
                   <InstrumentCombobox 
                     value={row.instrument} 

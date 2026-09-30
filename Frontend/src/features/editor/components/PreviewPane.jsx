@@ -60,7 +60,7 @@ const InteractiveRow = ({ row, children, className }) => {
     fontFamily: row.fontFamily || activeProject?.settings?.fontFamily || 'Helvetica',
     fontWeight: (row.isBold ?? activeProject?.settings?.isBold) ? 'bold' : 'normal',
     fontStyle: (row.isItalic ?? activeProject?.settings?.isItalic) ? 'italic' : 'normal',
-    textAlign: row.textAlign || activeProject?.settings?.textAlign || 'left',
+    textAlign: row.textAlign || activeProject?.settings?.textAlign || 'center',
   };
 
   return (
@@ -869,7 +869,7 @@ export const PreviewPane = ({ onClose }) => {
                         </div>
                       )}
                     </div>
-                    <div className="w-1/2 p-2 flex flex-col justify-center items-start pl-8 font-bold">
+                    <div className="w-1/2 p-2 flex flex-col justify-center items-end pr-8 text-right font-bold">
                       <div className="text-lg tracking-wider">{previewMode === 'snagsheet' ? 'SNACK SHEET' : 'INSPECTION REPORT'}</div>
                       <div className="text-[12px]">Format No.QC16/FM/35</div>
                       <div className="text-[12px]">Rev-01 & 11/10/2011</div>
@@ -966,7 +966,7 @@ export const PreviewPane = ({ onClose }) => {
                         </div>
                       )}
                     </div>
-                    <div className="w-1/2 p-2 flex flex-col justify-center items-start pl-8 font-bold">
+                    <div className="w-1/2 p-2 flex flex-col justify-center items-end pr-8 text-right font-bold">
                       <div className="text-lg tracking-wider">{previewMode === 'snagsheet' ? 'SNACK SHEET' : 'INSPECTION REPORT'}</div>
                       <div className="text-[12px]">Format No.QC16/FM/35</div>
                       <div className="text-[12px]">Rev-01 & 11/10/2011</div>

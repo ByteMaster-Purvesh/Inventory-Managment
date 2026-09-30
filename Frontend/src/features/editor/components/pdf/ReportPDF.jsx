@@ -116,7 +116,7 @@ export const ReportPDF = ({ project }) => {
                       <Text style={[styles.bold, styles.italic, { color: '#1d4ed8', fontSize: 14 }]}>Godrej AEROSPACE</Text>
                     )}
                   </View>
-                  <View style={[{ width: '50%', justifyContent: 'center', paddingLeft: 30 }, styles.p1]}>
+                  <View style={[{ width: '50%', justifyContent: 'center', alignItems: 'flex-end', paddingRight: 30 }, styles.p1]}>
                     <Text style={[styles.bold, { fontSize: 14, letterSpacing: 1 }]}>INSPECTION REPORT</Text>
                     <Text style={{ fontSize: 9, fontWeight: 'bold' }}>Format No.QC16/FM/35</Text>
                     <Text style={{ fontSize: 9 }}>Rev-01 & 11/10/2011</Text>
@@ -183,7 +183,7 @@ export const ReportPDF = ({ project }) => {
                       <Text style={[styles.bold, styles.italic, { color: '#1d4ed8', fontSize: 10, textAlign: 'center' }]}>Godrej AEROSPACE</Text>
                     )}
                   </View>
-                  <View style={[{ width: '50%', justifyContent: 'center', paddingLeft: 30 }, styles.p1]}>
+                  <View style={[{ width: '50%', justifyContent: 'center', alignItems: 'flex-end', paddingRight: 30 }, styles.p1]}>
                     <Text style={[styles.bold, { fontSize: 14, letterSpacing: 1 }]}>INSPECTION REPORT</Text>
                     <Text style={{ fontSize: 9, fontWeight: 'bold' }}>Format No.QC16/FM/35</Text>
                     <Text style={{ fontSize: 9 }}>Rev-01 & 11/10/2011</Text>
@@ -232,7 +232,7 @@ export const ReportPDF = ({ project }) => {
                 fontSize: row.fontSize || settings.fontSize || 9,
                 fontWeight: (row.isBold ?? settings.isBold) ? 'bold' : 'normal',
                 fontStyle: (row.isItalic ?? settings.isItalic) ? 'italic' : 'normal',
-                textAlign: row.textAlign || settings.textAlign || 'left'
+                textAlign: row.textAlign || settings.textAlign || 'center'
               };
               return (
               <View key={row.id} style={[styles.tableRow, rowStyle]}>

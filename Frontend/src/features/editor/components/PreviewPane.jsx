@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReportStore } from '../../../store/useReportStore';
 import { checkIsOutOfTolerance, formatDimension } from '../../../lib/calculations';
-import { ZoomIn, ZoomOut, Maximize, Trash2, Copy, FlipHorizontal, FlipVertical, Files, Hand, MousePointer2, ChevronUp, ChevronDown, RotateCw, Download, Share2, X } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize, Trash2, Copy, FlipHorizontal, FlipVertical, Files, Hand, MousePointer2, ChevronUp, ChevronDown, RotateCw, Download, Share2, X, PanelBottom, PanelRight, Monitor } from "lucide-react";
 import { Rnd } from "react-rnd";
 import { PDFDownloadLink, pdf } from '@react-pdf/renderer';
 import { ReportPDF } from './pdf/ReportPDF';
@@ -80,6 +80,8 @@ export const PreviewPane = ({ onClose }) => {
   const previewMode = useReportStore((state) => state.previewMode || 'report');
   const updateActiveProject = useReportStore((state) => state.updateActiveProject);
   const updateProjectSettings = useReportStore((state) => state.updateProjectSettings);
+  const previewLayout = useReportStore((state) => state.previewLayout);
+  const setPreviewLayout = useReportStore((state) => state.setPreviewLayout);
   const [zoomScale, setZoomScale] = useState(0.8); // Start slightly zoomed out to fit better
   const containerRef = useRef(null);
   const [isDraggingOverStamp, setIsDraggingOverStamp] = useState(false);
@@ -595,14 +597,14 @@ export const PreviewPane = ({ onClose }) => {
       <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
       <div id="preview-pane-section" className="flex flex-col w-full h-full bg-[#1e1e1e]">
         {/* Header Bar */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-[#2b2b2b] shrink-0 bg-[#1e1e1e]">
-          <div className="text-sm font-semibold text-zinc-300">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-[#2b2b2b] shrink-0 bg-[#1e1e1e] overflow-x-auto hide-scrollbar gap-4">
+          <div className="text-sm font-semibold text-zinc-300 whitespace-nowrap">
             Preview: {previewMode === 'snagsheet' ? 'Snack Sheet' : 'Inspection Report'}
           </div>
           
           {/* Toolbar Items (Horizontal) */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md p-1">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md p-1 shrink-0">
               <button 
                 onClick={() => scrollToPage(currentPage - 1)}
                 disabled={currentPage <= 1}
@@ -626,7 +628,7 @@ export const PreviewPane = ({ onClose }) => {
                   }}
                   className="w-8 px-1 py-0.5 bg-zinc-950 rounded border border-zinc-700 text-[11px] text-center text-zinc-100 outline-none focus:border-orange-500 transition-colors"
                 />
-                <span className="text-[11px] text-zinc-400 font-medium">/ {pages.length}</span>
+                <span className="text-[11px] text-zinc-400 font-medium whitespace-nowrap">/ {pages.length}</span>
               </div>
               <button 
                 onClick={() => scrollToPage(currentPage + 1)}
@@ -638,9 +640,9 @@ export const PreviewPane = ({ onClose }) => {
               </button>
             </div>
 
-            <div className="h-4 w-px bg-zinc-700 mx-1"></div>
+            <div className="h-4 w-px bg-zinc-700 mx-1 shrink-0"></div>
 
-            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md p-1">
+            <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md p-1 shrink-0">
               <button onClick={() => scrollToPage(1)} className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-300 hover:text-zinc-100" title="First Page">
                 <RotateCw size={16} />
               </button>
@@ -700,16 +702,40 @@ export const PreviewPane = ({ onClose }) => {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 shrink-0">
             <div className="flex items-center gap-2">
-              <button onClick={handleShare} className="flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-3 py-1.5 rounded text-sm font-medium border border-[#2b2b2b] hover:bg-[#2b2b2b] cursor-pointer transition-colors">
+              <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-md p-1 mr-2">
+                <button 
+                  onClick={() => setPreviewLayout('bottom')} 
+                  className={`p-1 rounded transition-colors ${previewLayout === 'bottom' ? 'bg-[#007acc] text-white' : 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`} 
+                  title="Split Horizontal"
+                >
+                  <PanelBottom size={16} />
+                </button>
+                <button 
+                  onClick={() => setPreviewLayout('right')} 
+                  className={`p-1 rounded transition-colors ${previewLayout === 'right' ? 'bg-[#007acc] text-white' : 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`} 
+                  title="Split Vertical"
+                >
+                  <PanelRight size={16} />
+                </button>
+                <button 
+                  onClick={() => setPreviewLayout('full')} 
+                  className={`p-1 rounded transition-colors ${previewLayout === 'full' ? 'bg-[#007acc] text-white' : 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`} 
+                  title="Full Screen Preview"
+                >
+                  <Monitor size={16} />
+                </button>
+              </div>
+
+              <button onClick={handleShare} className="flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-3 py-1.5 rounded text-sm font-medium border border-[#2b2b2b] hover:bg-[#2b2b2b] cursor-pointer transition-colors whitespace-nowrap shrink-0">
                 <Share2 size={16} />
                 Share
               </button>
               <button 
                 onClick={handleExportPdf}
                 disabled={isExporting}
-                className={`flex items-center gap-2 px-6 py-1.5 rounded text-sm font-medium cursor-pointer transition-colors ${
+                className={`flex items-center gap-2 px-6 py-1.5 rounded text-sm font-medium cursor-pointer transition-colors whitespace-nowrap shrink-0 ${
                   isExporting ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed' : 'bg-[#007acc] hover:bg-[#005999] text-white'
                 }`}
               >

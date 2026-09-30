@@ -22,8 +22,10 @@ export const useReportStore = create((set, get) => ({
   activeRowId: null,
   activeInputTab: 'Home',
   previewMode: 'report',
+  previewLayout: 'bottom', // 'bottom', 'right', 'full'
 
   setPreviewMode: (mode) => set({ previewMode: mode }),
+  setPreviewLayout: (layout) => set({ previewLayout: layout }),
   setActiveInputTab: (tab) => set({ activeInputTab: tab }),
   setActiveRow: (id) => set({ activeRowId: id }),
 

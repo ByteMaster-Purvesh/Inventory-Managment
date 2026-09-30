@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useReportStore } from '../../../store/useReportStore';
 import { checkIsOutOfTolerance, formatDimension } from '../../../lib/calculations';
-import { ZoomIn, ZoomOut, Maximize, Trash2, Copy, FlipHorizontal, Files, Hand, MousePointer2, ChevronUp, ChevronDown, RotateCw, Download, Share2, X } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize, Trash2, Copy, FlipHorizontal, FlipVertical, Files, Hand, MousePointer2, ChevronUp, ChevronDown, RotateCw, Download, Share2, X } from "lucide-react";
 import { Rnd } from "react-rnd";
 import { PDFDownloadLink, pdf } from '@react-pdf/renderer';
 import { ReportPDF } from './pdf/ReportPDF';
@@ -32,14 +33,14 @@ const InteractiveField = ({ tabName, fieldId, children, className = "p-1" }) => 
 
 const InteractiveRow = ({ row, children, className }) => {
   const setActiveInputTab = useReportStore((state) => state.setActiveInputTab);
-  const setActiveProject = useReportStore((state) => state.setActiveProject);
   const activeProject = useReportStore((state) => state.activeProject);
+  const navigate = useNavigate();
 
   const handleClick = (e) => {
     e.stopPropagation();
     
     if (row.projectId && activeProject && row.projectId !== activeProject.id) {
-      setActiveProject(row.projectId);
+      navigate(`/editor/${btoa(row.projectId)}`);
     }
     
     setActiveInputTab('Data');
@@ -75,12 +76,22 @@ export const PreviewPane = ({ onClose }) => {
   const [isDraggingOverGodrejStamp, setIsDraggingOverGodrejStamp] = useState(false);
   const [isDraggingOverGodrejStamp2, setIsDraggingOverGodrejStamp2] = useState(false);
   const [isDraggingOverLogo, setIsDraggingOverLogo] = useState(false);
+  
+  // Snag sheet stamp drag states
+  const [isDraggingOverSnagSupplierStamp, setIsDraggingOverSnagSupplierStamp] = useState(false);
+  const [isDraggingOverSnagGodrejQcStamp, setIsDraggingOverSnagGodrejQcStamp] = useState(false);
+  const [isDraggingOverSnagGodrejDesignStamp, setIsDraggingOverSnagGodrejDesignStamp] = useState(false);
+  
   const [selectedImage, setSelectedImage] = useState(null);
 
   const logoInputRef = useRef(null);
   const supplierStampInputRef = useRef(null);
   const godrejStampInputRef = useRef(null);
   const godrejStampInputRef2 = useRef(null);
+  
+  const snagSupplierStampInputRef = useRef(null);
+  const snagGodrejQcStampInputRef = useRef(null);
+  const snagGodrejDesignStampInputRef = useRef(null);
 
   const [activeTool, setActiveTool] = useState('select'); // 'select' or 'pan'
   const [isPanning, setIsPanning] = useState(false);
@@ -94,32 +105,50 @@ export const PreviewPane = ({ onClose }) => {
         const url = reader.result;
         const img = new Image();
         img.onload = () => {
-          let width = img.width;
-          let height = img.height;
+          const origWidth = img.width;
+          const origHeight = img.height;
           
-          const maxW = type === 'logo' ? 200 : 150;
-          const maxH = type === 'logo' ? 80 : 150;
-          const ratio = Math.min(maxW / width, maxH / height);
-          if (ratio < 1) { width *= ratio; height *= ratio; }
+          // Display size logic for the Draggable component
+          const maxDispW = type === 'logo' ? 200 : 150;
+          const maxDispH = type === 'logo' ? 80 : 150;
+          const dispRatio = Math.min(maxDispW / origWidth, maxDispH / origHeight);
+          let dispWidth = origWidth;
+          let dispHeight = origHeight;
+          if (dispRatio < 1) { dispWidth *= dispRatio; dispHeight *= dispRatio; }
+
+          // Storage size logic (keep it high quality so it's clear on PDF!)
+          const maxCompW = 1200;
+          const maxCompH = 1200;
+          const compRatio = Math.min(maxCompW / origWidth, maxCompH / origHeight);
+          let compWidth = origWidth;
+          let compHeight = origHeight;
+          if (compRatio < 1) { compWidth *= compRatio; compHeight *= compRatio; }
           
           const configMap = {
             logo: { settingKey: 'logoTransform', urlKey: 'logoUrl', inSettings: true },
             supplierStamp: { settingKey: 'stampTransform', urlKey: 'supplierStampUrl', inSettings: false },
             godrejStamp: { settingKey: 'godrejStampTransform', urlKey: 'godrejStampUrl', inSettings: false },
-            godrejStamp2: { settingKey: 'godrejStampTransform2', urlKey: 'godrejStampUrl2', inSettings: false }
+            godrejStamp2: { settingKey: 'godrejStampTransform2', urlKey: 'godrejStampUrl2', inSettings: false },
+            snagSupplierStamp: { settingKey: 'snagSupplierStampTransform', urlKey: 'snagSupplierStampUrl', inSettings: false },
+            snagGodrejQcStamp: { settingKey: 'snagGodrejQcStampTransform', urlKey: 'snagGodrejQcStampUrl', inSettings: false },
+            snagGodrejDesignStamp: { settingKey: 'snagGodrejDesignStampTransform', urlKey: 'snagGodrejDesignStampUrl', inSettings: false }
           };
           
           const config = configMap[type];
           if (config) {
-            // Compress the image before saving to state/localStorage
+            // High-quality canvas compression
             const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
+            canvas.width = compWidth;
+            canvas.height = compHeight;
             const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, compWidth, compHeight);
+            
+            // Generate clear image data URL
             const compressedUrl = canvas.toDataURL('image/png');
 
-            updateProjectSettings(config.settingKey, { width, height, x: 0, y: 0 });
+            updateProjectSettings(config.settingKey, { width: dispWidth, height: dispHeight, x: 0, y: 0 });
             if (config.inSettings) {
               updateProjectSettings(config.urlKey, compressedUrl);
             } else {
@@ -227,7 +256,6 @@ export const PreviewPane = ({ onClose }) => {
 
   const flipImageHorizontally = (url, callback) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
     img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
@@ -235,6 +263,21 @@ export const PreviewPane = ({ onClose }) => {
       const ctx = canvas.getContext('2d');
       ctx.translate(img.width, 0);
       ctx.scale(-1, 1);
+      ctx.drawImage(img, 0, 0);
+      callback(canvas.toDataURL());
+    };
+    img.src = url;
+  };
+
+  const flipImageVertically = (url, callback) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(0, img.height);
+      ctx.scale(1, -1);
       ctx.drawImage(img, 0, 0);
       callback(canvas.toDataURL());
     };
@@ -379,7 +422,12 @@ export const PreviewPane = ({ onClose }) => {
   let validRows = [];
 
   if (previewMode === 'snagsheet') {
-    const projectComponents = projects.filter(p => p.projectName === activeProject.projectName);
+    let projectComponents = [];
+    if (activeProject.type === 'snagsheet' && activeProject.linkedComponentIds) {
+      projectComponents = projects.filter(p => activeProject.linkedComponentIds.includes(p.id));
+    } else {
+      projectComponents = projects.filter(p => p.projectName === activeProject.projectName && p.type !== 'snagsheet');
+    }
     projectComponents.forEach(comp => {
       const outOfTolRows = comp.rows.filter(row => 
         (row.drawingSize || row.toleranceVal || row.instrument || row.places) &&
@@ -484,6 +532,25 @@ export const PreviewPane = ({ onClose }) => {
     e.preventDefault();
     setIsDraggingOverGodrejStamp2(false);
     handleImageUpload(e.dataTransfer.files?.[0], 'godrejStamp2');
+  };
+
+  // Snag Sheet stamp handlers
+  const handleDropSnagSupplierStamp = (e) => {
+    e.preventDefault();
+    setIsDraggingOverSnagSupplierStamp(false);
+    handleImageUpload(e.dataTransfer.files?.[0], 'snagSupplierStamp');
+  };
+
+  const handleDropSnagGodrejQcStamp = (e) => {
+    e.preventDefault();
+    setIsDraggingOverSnagGodrejQcStamp(false);
+    handleImageUpload(e.dataTransfer.files?.[0], 'snagGodrejQcStamp');
+  };
+
+  const handleDropSnagGodrejDesignStamp = (e) => {
+    e.preventDefault();
+    setIsDraggingOverSnagGodrejDesignStamp(false);
+    handleImageUpload(e.dataTransfer.files?.[0], 'snagGodrejDesignStamp');
   };
 
 
@@ -1012,10 +1079,153 @@ export const PreviewPane = ({ onClose }) => {
 
               {/* Footer Section */}
               {previewMode === 'snagsheet' ? (
-                <div className="flex justify-between items-end mt-12 px-4 font-bold text-[12px]">
-                   <div>Sign & Stamp of Supplier</div>
-                   <div>Sign of Godrej QC</div>
-                   <div>Sign of Godrej Design</div>
+                <div className="grid grid-cols-3 mt-12 mb-4 h-[120px] font-bold text-[12px] text-center px-4 gap-4">
+                   {/* Sign & Stamp of Supplier */}
+                   <div 
+                     className={`relative flex flex-col justify-end items-center group border border-transparent ${!activeProject.snagSupplierStampUrl ? 'cursor-pointer hover:border-dashed hover:border-gray-400' : ''} ${isDraggingOverSnagSupplierStamp ? 'bg-orange-500/20' : ''}`}
+                     onDragOver={e => { e.preventDefault(); setIsDraggingOverSnagSupplierStamp(true); }}
+                     onDragLeave={e => { e.preventDefault(); setIsDraggingOverSnagSupplierStamp(false); }}
+                     onDrop={handleDropSnagSupplierStamp}
+                     onClick={() => !activeProject.snagSupplierStampUrl && snagSupplierStampInputRef.current?.click()}
+                   >
+                     <input type="file" accept="image/*" ref={snagSupplierStampInputRef} className="hidden" onChange={(e) => handleImageUpload(e.target.files?.[0], 'snagSupplierStamp')} />
+                     
+                     {activeProject.snagSupplierStampUrl ? (
+                       <Rnd
+                          size={{ width: settings.snagSupplierStampTransform?.width || 120, height: settings.snagSupplierStampTransform?.height || 80 }}
+                          position={{ x: settings.snagSupplierStampTransform?.x || 0, y: settings.snagSupplierStampTransform?.y || 0 }}
+                          onDragStop={(e, d) => updateProjectSettings('snagSupplierStampTransform', { ...(settings.snagSupplierStampTransform || {}), x: d.x, y: d.y })}
+                          onResizeStop={(e, dir, ref, delta, pos) => updateProjectSettings('snagSupplierStampTransform', { width: parseInt(ref.style.width, 10), height: parseInt(ref.style.height, 10), ...pos })}
+                          lockAspectRatio={true}
+                          scale={zoomScale}
+                          className={`border border-dashed flex items-center justify-center z-10 absolute top-0 ${selectedImage === 'snagSupplierStamp' ? 'border-blue-500' : 'border-transparent hover:border-blue-400'}`}
+                          onClick={(e) => { e.stopPropagation(); setSelectedImage('snagSupplierStamp'); }}
+                       >
+                         <img src={activeProject.snagSupplierStampUrl} alt="Supplier Stamp" className="w-full h-full opacity-80 pointer-events-none" />
+                         {selectedImage === 'snagSupplierStamp' && (
+                           <div 
+                             className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-white shadow-lg rounded-md border border-gray-200 flex gap-1 p-1 z-50 pointer-events-auto" 
+                             onClick={e => e.stopPropagation()} 
+                             onPointerDown={e => e.stopPropagation()}
+                             onMouseDown={e => e.stopPropagation()}
+                             onTouchStart={e => e.stopPropagation()}
+                           >
+                             <button title="Copy Image" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => copyImageToClipboard(activeProject.snagSupplierStampUrl)}><Copy size={16} /></button>
+                             <button title="Duplicate to Godrej QC" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => {
+                               updateProjectSettings('snagGodrejQcStampTransform', { width: 120, height: 80, x: 0, y: 0 });
+                               updateActiveProject({ snagGodrejQcStampUrl: activeProject.snagSupplierStampUrl });
+                             }}><Files size={16} /></button>
+                             <button title="Flip Horizontal" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => flipImageHorizontally(activeProject.snagSupplierStampUrl, (url) => updateActiveProject({ snagSupplierStampUrl: url }))}><FlipHorizontal size={16} /></button>
+                             <button title="Flip Vertical" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => flipImageVertically(activeProject.snagSupplierStampUrl, (url) => updateActiveProject({ snagSupplierStampUrl: url }))}><FlipVertical size={16} /></button>
+                             <button title="Delete" className="p-1 hover:bg-gray-100 rounded text-red-600" onClick={() => updateActiveProject({ snagSupplierStampUrl: null })}><Trash2 size={16} /></button>
+                           </div>
+                         )}
+                       </Rnd>
+                     ) : (
+                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                         <span className="text-[10px] text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity">Click or drag stamp here</span>
+                       </div>
+                     )}
+                     <div className="mb-2 z-0 pointer-events-none">Sign & Stamp of Supplier</div>
+                   </div>
+
+                   {/* Sign of Godrej QC */}
+                   <div 
+                     className={`relative flex flex-col justify-end items-center group border border-transparent ${!activeProject.snagGodrejQcStampUrl ? 'cursor-pointer hover:border-dashed hover:border-gray-400' : ''} ${isDraggingOverSnagGodrejQcStamp ? 'bg-orange-500/20' : ''}`}
+                     onDragOver={e => { e.preventDefault(); setIsDraggingOverSnagGodrejQcStamp(true); }}
+                     onDragLeave={e => { e.preventDefault(); setIsDraggingOverSnagGodrejQcStamp(false); }}
+                     onDrop={handleDropSnagGodrejQcStamp}
+                     onClick={() => !activeProject.snagGodrejQcStampUrl && snagGodrejQcStampInputRef.current?.click()}
+                   >
+                     <input type="file" accept="image/*" ref={snagGodrejQcStampInputRef} className="hidden" onChange={(e) => handleImageUpload(e.target.files?.[0], 'snagGodrejQcStamp')} />
+                     
+                     {activeProject.snagGodrejQcStampUrl ? (
+                       <Rnd
+                          size={{ width: settings.snagGodrejQcStampTransform?.width || 120, height: settings.snagGodrejQcStampTransform?.height || 80 }}
+                          position={{ x: settings.snagGodrejQcStampTransform?.x || 0, y: settings.snagGodrejQcStampTransform?.y || 0 }}
+                          onDragStop={(e, d) => updateProjectSettings('snagGodrejQcStampTransform', { ...(settings.snagGodrejQcStampTransform || {}), x: d.x, y: d.y })}
+                          onResizeStop={(e, dir, ref, delta, pos) => updateProjectSettings('snagGodrejQcStampTransform', { width: parseInt(ref.style.width, 10), height: parseInt(ref.style.height, 10), ...pos })}
+                          lockAspectRatio={true}
+                          scale={zoomScale}
+                          className={`border border-dashed flex items-center justify-center z-10 absolute top-0 ${selectedImage === 'snagGodrejQcStamp' ? 'border-blue-500' : 'border-transparent hover:border-blue-400'}`}
+                          onClick={(e) => { e.stopPropagation(); setSelectedImage('snagGodrejQcStamp'); }}
+                       >
+                         <img src={activeProject.snagGodrejQcStampUrl} alt="Godrej QC Stamp" className="w-full h-full opacity-80 pointer-events-none" />
+                         {selectedImage === 'snagGodrejQcStamp' && (
+                           <div 
+                             className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-white shadow-lg rounded-md border border-gray-200 flex gap-1 p-1 z-50 pointer-events-auto" 
+                             onClick={e => e.stopPropagation()} 
+                             onPointerDown={e => e.stopPropagation()}
+                             onMouseDown={e => e.stopPropagation()}
+                             onTouchStart={e => e.stopPropagation()}
+                           >
+                             <button title="Copy Image" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => copyImageToClipboard(activeProject.snagGodrejQcStampUrl)}><Copy size={16} /></button>
+                             <button title="Duplicate to Godrej Design" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => {
+                               updateProjectSettings('snagGodrejDesignStampTransform', { width: 120, height: 80, x: 0, y: 0 });
+                               updateActiveProject({ snagGodrejDesignStampUrl: activeProject.snagGodrejQcStampUrl });
+                             }}><Files size={16} /></button>
+                             <button title="Flip Horizontal" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => flipImageHorizontally(activeProject.snagGodrejQcStampUrl, (url) => updateActiveProject({ snagGodrejQcStampUrl: url }))}><FlipHorizontal size={16} /></button>
+                             <button title="Flip Vertical" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => flipImageVertically(activeProject.snagGodrejQcStampUrl, (url) => updateActiveProject({ snagGodrejQcStampUrl: url }))}><FlipVertical size={16} /></button>
+                             <button title="Delete" className="p-1 hover:bg-gray-100 rounded text-red-600" onClick={() => updateActiveProject({ snagGodrejQcStampUrl: null })}><Trash2 size={16} /></button>
+                           </div>
+                         )}
+                       </Rnd>
+                     ) : (
+                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                         <span className="text-[10px] text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity">Click or drag stamp here</span>
+                       </div>
+                     )}
+                     <div className="mb-2 z-0 pointer-events-none">Sign of Godrej QC</div>
+                   </div>
+
+                   {/* Sign of Godrej Design */}
+                   <div 
+                     className={`relative flex flex-col justify-end items-center group border border-transparent ${!activeProject.snagGodrejDesignStampUrl ? 'cursor-pointer hover:border-dashed hover:border-gray-400' : ''} ${isDraggingOverSnagGodrejDesignStamp ? 'bg-orange-500/20' : ''}`}
+                     onDragOver={e => { e.preventDefault(); setIsDraggingOverSnagGodrejDesignStamp(true); }}
+                     onDragLeave={e => { e.preventDefault(); setIsDraggingOverSnagGodrejDesignStamp(false); }}
+                     onDrop={handleDropSnagGodrejDesignStamp}
+                     onClick={() => !activeProject.snagGodrejDesignStampUrl && snagGodrejDesignStampInputRef.current?.click()}
+                   >
+                     <input type="file" accept="image/*" ref={snagGodrejDesignStampInputRef} className="hidden" onChange={(e) => handleImageUpload(e.target.files?.[0], 'snagGodrejDesignStamp')} />
+                     
+                     {activeProject.snagGodrejDesignStampUrl ? (
+                       <Rnd
+                          size={{ width: settings.snagGodrejDesignStampTransform?.width || 120, height: settings.snagGodrejDesignStampTransform?.height || 80 }}
+                          position={{ x: settings.snagGodrejDesignStampTransform?.x || 0, y: settings.snagGodrejDesignStampTransform?.y || 0 }}
+                          onDragStop={(e, d) => updateProjectSettings('snagGodrejDesignStampTransform', { ...(settings.snagGodrejDesignStampTransform || {}), x: d.x, y: d.y })}
+                          onResizeStop={(e, dir, ref, delta, pos) => updateProjectSettings('snagGodrejDesignStampTransform', { width: parseInt(ref.style.width, 10), height: parseInt(ref.style.height, 10), ...pos })}
+                          lockAspectRatio={true}
+                          scale={zoomScale}
+                          className={`border border-dashed flex items-center justify-center z-10 absolute top-0 ${selectedImage === 'snagGodrejDesignStamp' ? 'border-blue-500' : 'border-transparent hover:border-blue-400'}`}
+                          onClick={(e) => { e.stopPropagation(); setSelectedImage('snagGodrejDesignStamp'); }}
+                       >
+                         <img src={activeProject.snagGodrejDesignStampUrl} alt="Godrej Design Stamp" className="w-full h-full opacity-80 pointer-events-none" />
+                         {selectedImage === 'snagGodrejDesignStamp' && (
+                           <div 
+                             className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-white shadow-lg rounded-md border border-gray-200 flex gap-1 p-1 z-50 pointer-events-auto" 
+                             onClick={e => e.stopPropagation()} 
+                             onPointerDown={e => e.stopPropagation()}
+                             onMouseDown={e => e.stopPropagation()}
+                             onTouchStart={e => e.stopPropagation()}
+                           >
+                             <button title="Copy Image" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => copyImageToClipboard(activeProject.snagGodrejDesignStampUrl)}><Copy size={16} /></button>
+                             <button title="Duplicate to Godrej QC" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => {
+                               updateProjectSettings('snagGodrejQcStampTransform', { width: 120, height: 80, x: 0, y: 0 });
+                               updateActiveProject({ snagGodrejQcStampUrl: activeProject.snagGodrejDesignStampUrl });
+                             }}><Files size={16} /></button>
+                             <button title="Flip Horizontal" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => flipImageHorizontally(activeProject.snagGodrejDesignStampUrl, (url) => updateActiveProject({ snagGodrejDesignStampUrl: url }))}><FlipHorizontal size={16} /></button>
+                             <button title="Flip Vertical" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => flipImageVertically(activeProject.snagGodrejDesignStampUrl, (url) => updateActiveProject({ snagGodrejDesignStampUrl: url }))}><FlipVertical size={16} /></button>
+                             <button title="Delete" className="p-1 hover:bg-gray-100 rounded text-red-600" onClick={() => updateActiveProject({ snagGodrejDesignStampUrl: null })}><Trash2 size={16} /></button>
+                           </div>
+                         )}
+                       </Rnd>
+                     ) : (
+                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                         <span className="text-[10px] text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity">Click or drag stamp here</span>
+                       </div>
+                     )}
+                     <div className="mb-2 z-0 pointer-events-none">Sign of Godrej Design</div>
+                    </div>
                 </div>
               ) : (
               <div className="border border-black border-t-0 flex flex-col text-[10px]">
@@ -1072,6 +1282,7 @@ export const PreviewPane = ({ onClose }) => {
                             onClick={e => e.stopPropagation()}
                             onPointerDown={e => e.stopPropagation()} 
                             onMouseDown={e => e.stopPropagation()}
+                            onTouchStart={e => e.stopPropagation()}
                           >
                             <button title="Copy Image" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => copyImageToClipboard(activeProject.supplierStampUrl)}><Copy size={16} /></button>
                             <button title="Duplicate to Godrej" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => {
@@ -1079,6 +1290,7 @@ export const PreviewPane = ({ onClose }) => {
                               updateActiveProject({ godrejStampUrl: activeProject.supplierStampUrl });
                             }}><Files size={16} /></button>
                             <button title="Flip Horizontal" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => flipImageHorizontally(activeProject.supplierStampUrl, (url) => updateActiveProject({ supplierStampUrl: url }))}><FlipHorizontal size={16} /></button>
+                            <button title="Flip Vertical" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => flipImageVertically(activeProject.supplierStampUrl, (url) => updateActiveProject({ supplierStampUrl: url }))}><FlipVertical size={16} /></button>
                             <button title="Delete" className="p-1 hover:bg-gray-100 rounded text-red-600" onClick={() => updateActiveProject({ supplierStampUrl: null })}><Trash2 size={16} /></button>
                           </div>
                         )}
@@ -1147,6 +1359,7 @@ export const PreviewPane = ({ onClose }) => {
                                 onClick={e => e.stopPropagation()}
                                 onPointerDown={e => e.stopPropagation()} 
                                 onMouseDown={e => e.stopPropagation()}
+                                onTouchStart={e => e.stopPropagation()}
                               >
                                 <button title="Copy Image" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => copyImageToClipboard(activeProject.godrejStampUrl)}><Copy size={16} /></button>
                                 <button title="Duplicate to Right" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => {
@@ -1154,6 +1367,7 @@ export const PreviewPane = ({ onClose }) => {
                                   updateActiveProject({ godrejStampUrl2: activeProject.godrejStampUrl });
                                 }}><Files size={16} /></button>
                                 <button title="Flip Horizontal" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => flipImageHorizontally(activeProject.godrejStampUrl, (url) => updateActiveProject({ godrejStampUrl: url }))}><FlipHorizontal size={16} /></button>
+                                <button title="Flip Vertical" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => flipImageVertically(activeProject.godrejStampUrl, (url) => updateActiveProject({ godrejStampUrl: url }))}><FlipVertical size={16} /></button>
                                 <button title="Delete" className="p-1 hover:bg-gray-100 rounded text-red-600" onClick={() => updateActiveProject({ godrejStampUrl: null })}><Trash2 size={16} /></button>
                               </div>
                             )}
@@ -1212,6 +1426,7 @@ export const PreviewPane = ({ onClose }) => {
                                 onClick={e => e.stopPropagation()}
                                 onPointerDown={e => e.stopPropagation()} 
                                 onMouseDown={e => e.stopPropagation()}
+                                onTouchStart={e => e.stopPropagation()}
                               >
                                 <button title="Copy Image" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => copyImageToClipboard(activeProject.godrejStampUrl2)}><Copy size={16} /></button>
                                 <button title="Duplicate to Left" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => {
@@ -1219,6 +1434,7 @@ export const PreviewPane = ({ onClose }) => {
                                   updateActiveProject({ godrejStampUrl: activeProject.godrejStampUrl2 });
                                 }}><Files size={16} /></button>
                                 <button title="Flip Horizontal" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => flipImageHorizontally(activeProject.godrejStampUrl2, (url) => updateActiveProject({ godrejStampUrl2: url }))}><FlipHorizontal size={16} /></button>
+                                <button title="Flip Vertical" className="p-1 hover:bg-gray-100 rounded text-gray-700" onClick={() => flipImageVertically(activeProject.godrejStampUrl2, (url) => updateActiveProject({ godrejStampUrl2: url }))}><FlipVertical size={16} /></button>
                                 <button title="Delete" className="p-1 hover:bg-gray-100 rounded text-red-600" onClick={() => updateActiveProject({ godrejStampUrl2: null })}><Trash2 size={16} /></button>
                               </div>
                             )}

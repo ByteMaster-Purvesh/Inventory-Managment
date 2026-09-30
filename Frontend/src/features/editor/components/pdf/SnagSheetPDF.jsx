@@ -202,9 +202,24 @@ export const SnagSheetPDF = ({ activeProject, allProjects }) => {
 
           {/* Footer */}
           <View wrap={false} style={[styles.row, { marginTop: 24, paddingHorizontal: 12, fontSize: 10, fontWeight: 'bold', fontFamily: 'Helvetica-Bold' }]}>
-            <View style={{ width: '33.33%', textAlign: 'left' }}><Text>Sign & Stamp of Supplier</Text></View>
-            <View style={{ width: '33.33%', textAlign: 'center' }}><Text>Sign of Godrej QC</Text></View>
-            <View style={{ width: '33.33%', textAlign: 'right' }}><Text>Sign of Godrej Design</Text></View>
+            <View style={{ width: '33.33%', alignItems: 'center', justifyContent: 'flex-end', minHeight: 60 }}>
+              {project.snagSupplierStampUrl && (
+                <Image src={project.snagSupplierStampUrl} style={{ width: scale(settings.snagSupplierStampTransform?.width || 120), height: scale(settings.snagSupplierStampTransform?.height || 80), marginBottom: 8 }} />
+              )}
+              <Text>Sign & Stamp of Supplier</Text>
+            </View>
+            <View style={{ width: '33.33%', alignItems: 'center', justifyContent: 'flex-end', minHeight: 60 }}>
+              {project.snagGodrejQcStampUrl && (
+                <Image src={project.snagGodrejQcStampUrl} style={{ width: scale(settings.snagGodrejQcStampTransform?.width || 120), height: scale(settings.snagGodrejQcStampTransform?.height || 80), marginBottom: 8 }} />
+              )}
+              <Text>Sign of Godrej QC</Text>
+            </View>
+            <View style={{ width: '33.33%', alignItems: 'center', justifyContent: 'flex-end', minHeight: 60 }}>
+              {project.snagGodrejDesignStampUrl && (
+                <Image src={project.snagGodrejDesignStampUrl} style={{ width: scale(settings.snagGodrejDesignStampTransform?.width || 120), height: scale(settings.snagGodrejDesignStampTransform?.height || 80), marginBottom: 8 }} />
+              )}
+              <Text>Sign of Godrej Design</Text>
+            </View>
           </View>
         </Page>
       ))}

@@ -3,16 +3,20 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useReportStore } from '../../store/useReportStore';
 import { InputPane } from './components/InputPane';
 import { PreviewPane } from './components/PreviewPane';
-import { FileText, ChevronRight, ChevronDown, LayoutDashboard, Settings, User, Search, Folder, History, Plus, FilePlus, FolderPlus, RotateCw, List } from 'lucide-react';
+import { FileText, ChevronRight, ChevronDown, LayoutDashboard, Settings, User, Search, Folder, History, Plus, FilePlus, FolderPlus, RotateCw, List, ListChecks } from 'lucide-react';
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from 'react-resizable-panels';
 
 export const Editor = () => {
-  const { id } = useParams();
+  const { id: encodedId } = useParams();
+  const id = React.useMemo(() => {
+    try { return encodedId ? atob(encodedId) : null; } catch { return encodedId; }
+  }, [encodedId]);
   const navigate = useNavigate();
   const setActiveProject = useReportStore((state) => state.setActiveProject);
   const activeProject = useReportStore((state) => state.activeProject);
   const projects = useReportStore((state) => state.projects);
   const createProject = useReportStore((state) => state.createProject);
+  const createSnagSheetProject = useReportStore((state) => state.createSnagSheetProject);
   const deleteProjectGroup = useReportStore((state) => state.deleteProjectGroup);
   const renameProjectGroup = useReportStore((state) => state.renameProjectGroup);
   const deleteProject = useReportStore((state) => state.deleteProject);
@@ -150,7 +154,7 @@ export const Editor = () => {
     
     const newId = createProject(newName, customer, 'New Component');
     expandAncestors(newName);
-    navigate(`/editor/${newId}`);
+    navigate(`/editor/${btoa(newId)}`);
     setEditingFolder(newName);
     setEditValue(newName.split('/').pop());
   };
@@ -168,7 +172,27 @@ export const Editor = () => {
     expandAncestors(targetFolderName);
     setSelectedFiles([newId]);
     setSelectedFolders([]);
-    navigate(`/editor/${newId}`);
+    navigate(`/editor/${btoa(newId)}`);
+    setEditingFile(newId);
+    setEditFileValue(newName);
+  };
+
+  const handleNewSnagSheet = (targetFolderName, targetCustomer) => {
+    let baseName = 'New Snag Sheet';
+    let newName = baseName;
+    let count = 1;
+    const existingFilesInFolder = projects.filter(p => p.projectName === targetFolderName).map(p => p.componentsName);
+    while (existingFilesInFolder.includes(newName)) {
+      newName = `${baseName} ${count}`;
+      count++;
+    }
+    const newId = createSnagSheetProject(targetFolderName, targetCustomer, newName, []);
+    expandAncestors(targetFolderName);
+    setSelectedFiles([newId]);
+    setSelectedFolders([]);
+    useReportStore.getState().setPreviewMode('snagsheet');
+    useReportStore.getState().setActiveInputTab('Form');
+    navigate(`/editor/${btoa(newId)}`);
     setEditingFile(newId);
     setEditFileValue(newName);
   };
@@ -191,12 +215,30 @@ export const Editor = () => {
     } else {
       setSelectedFiles([projectId]);
       setSelectedFolders([]);
-      navigate(`/editor/${projectId}`);
+      
+      const proj = projects.find(p => p.id === projectId);
+      if (proj?.type === 'snagsheet') {
+        useReportStore.getState().setPreviewMode('snagsheet');
+        useReportStore.getState().setActiveInputTab('Form');
+      } else {
+        useReportStore.getState().setPreviewMode('report');
+      }
+      
+      navigate(`/editor/${btoa(projectId)}`);
     }
   };
 
   useEffect(() => {
     setActiveProject(id);
+    const proj = useReportStore.getState().projects.find(p => p.id === id);
+    if (proj) {
+      if (proj.type === 'snagsheet') {
+        useReportStore.getState().setPreviewMode('snagsheet');
+        useReportStore.getState().setActiveInputTab('Form');
+      } else {
+        useReportStore.getState().setPreviewMode('report');
+      }
+    }
   }, [id, setActiveProject]);
 
 
@@ -414,7 +456,11 @@ export const Editor = () => {
                             }`}
                           >
                             <div className="flex items-center gap-2 truncate">
-                              <FileText size={13} className={project.id === activeProject?.id ? 'text-zinc-100' : 'text-zinc-500 group-hover:text-zinc-300'} />
+                              {project.type === 'snagsheet' ? (
+                                <ListChecks size={13} className={project.id === activeProject?.id ? 'text-orange-500' : 'text-orange-600/70 group-hover:text-orange-500'} />
+                              ) : (
+                                <FileText size={13} className={project.id === activeProject?.id ? 'text-zinc-100' : 'text-zinc-500 group-hover:text-zinc-300'} />
+                              )}
                               {editingFile === project.id ? (
                                 <input 
                                   type="text"
@@ -580,7 +626,7 @@ export const Editor = () => {
                           return newTabs;
                         });
                       }}
-                      onClick={() => navigate(`/editor/${tabId}`)}
+                      onClick={() => navigate(`/editor/${btoa(tabId)}`)}
                       className={`flex items-center px-4 py-2 text-sm gap-2 min-w-max cursor-pointer border-t-2 ${
                         isActive 
                           ? 'bg-[#1e1e1e] border-orange-500 text-zinc-100' 
@@ -596,7 +642,7 @@ export const Editor = () => {
                           if (isActive) {
                             const nextTab = newTabs[newTabs.length - 1];
                             if (nextTab) {
-                              navigate(`/editor/${nextTab}`);
+                              navigate(`/editor/${btoa(nextTab)}`);
                             } else {
                               navigate('/');
                             }
@@ -611,14 +657,7 @@ export const Editor = () => {
                 })}
               </div>
 
-              {/* Action Bar (URL bar equivalent in Postman) */}
-              <div className="px-4 py-2 border-b border-[#2b2b2b] flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2 flex-1">
-                  <span className="text-xs font-semibold px-2 py-1 bg-zinc-800 rounded text-zinc-300 border border-[#2b2b2b]">WORKSPACE</span>
-                  <div className="text-sm font-medium text-zinc-300 truncate">{activeProject.customer || 'Unnamed Customer'}</div>
-                </div>
-              </div>
-              
+
               <PanelGroup direction="vertical" orientation="vertical" className="flex-1 relative flex flex-col min-h-0 bg-[#1e1e1e]">
                 <Panel defaultSize={showLivePreview ? 60 : 100} minSize={30} className="flex flex-col min-h-0 relative">
                   <InputPane onLivePreviewClick={() => setShowLivePreview(prev => !prev)} />
@@ -687,6 +726,13 @@ export const Editor = () => {
                  setContextMenu(null);
                }}>
             <span>New Folder...</span>
+          </div>
+          <div className="hover:bg-[#0060c0] hover:text-white px-6 py-1 cursor-default flex justify-between group"
+               onClick={() => {
+                 handleNewSnagSheet(contextMenu.folderName, contextMenu.customer);
+                 setContextMenu(null);
+               }}>
+            <span>New Snag Sheet...</span>
           </div>
 
           <div className="h-px bg-[#333] my-1 mx-2"></div>

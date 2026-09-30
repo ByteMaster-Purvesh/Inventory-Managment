@@ -33,6 +33,7 @@ export const useReportStore = create((set, get) => ({
       projectName,
       customer,
       componentsName,
+      type: 'inspection',
       date: new Date().toLocaleDateString('en-GB'), // DD/MM/YYYY
       projectNo: '',
       productionOrderNo: '',
@@ -75,6 +76,45 @@ export const useReportStore = create((set, get) => ({
       const updatedProjects = [...state.projects, newProject];
       saveToLocalStorage(updatedProjects);
       return { projects: updatedProjects, activeProject: newProject };
+    });
+    return newProject.id;
+  },
+
+  createSnagSheetProject: (projectName, customer, componentsName, linkedComponentIds) => {
+    const newProject = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      projectName,
+      customer,
+      componentsName,
+      type: 'snagsheet',
+      linkedComponentIds,
+      date: new Date().toLocaleDateString('en-GB'),
+      snagSheetNo: '',
+      toolDescription: '',
+      itemCodeNo: '',
+      poNo: '',
+      drgNo: '',
+      supplierName: '',
+      rows: [],
+      customTables: [],
+      settings: {
+        fontFamily: 'Helvetica',
+        fontSize: 11,
+        isBold: false,
+        isItalic: false,
+        textAlign: 'left',
+        logoUrl: null,
+        logoTransform: { width: 150, height: 48, x: 0, y: 0 },
+        stampTransform: { width: 120, height: 120, x: 0, y: 0 },
+        godrejStampTransform: { width: 120, height: 120, x: 0, y: 0 },
+        godrejStampTransform2: { width: 120, height: 120, x: 0, y: 0 },
+      },
+    };
+    
+    set((state) => {
+      const updatedProjects = [...state.projects, newProject];
+      saveToLocalStorage(updatedProjects);
+      return { projects: updatedProjects, activeProject: newProject, previewMode: 'snagsheet', activeInputTab: 'Form' };
     });
     return newProject.id;
   },

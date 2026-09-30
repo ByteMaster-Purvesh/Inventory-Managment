@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useReportStore } from '../../../store/useReportStore';
 import { calculateTolerance } from '../../../lib/calculations';
-import { Trash2, GripVertical, Plus, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon, Settings2, Columns, Copy, Download, Eye, X } from 'lucide-react';
+import { Trash2, GripVertical, Plus, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Image as ImageIcon, Settings2, Columns, Copy, Download, Eye, X, FileText, Upload, UploadCloud } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { ReportPDF } from './pdf/ReportPDF';
 
@@ -59,6 +59,75 @@ const SymbolDropdown = ({ value, onChange }) => {
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+const ImageDropzone = ({ label, value, onChange, onRemove }) => {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => onChange(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => onChange(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5 h-full w-full">
+      <label className="text-xs font-medium text-zinc-400 pl-1">{label}</label>
+      <div 
+        className={`relative flex-1 min-h-[140px] rounded-lg border-2 border-dashed flex flex-col items-center justify-center p-4 transition-all cursor-pointer overflow-hidden group shadow-inner
+          ${isDragOver ? 'border-orange-500 bg-orange-500/10' : 'border-zinc-700 bg-zinc-900/50 hover:border-zinc-500 hover:bg-zinc-800'}`}
+        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={handleDrop}
+        onClick={() => !value && fileInputRef.current?.click()}
+      >
+        <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleChange} />
+        {value ? (
+          <>
+            <img src={value} alt={label} className="absolute inset-0 w-full h-full object-contain p-2" />
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 backdrop-blur-sm">
+              <button 
+                onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                className="p-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-full text-white shadow-lg transition-transform hover:scale-110"
+                title="Replace Image"
+              >
+                <Upload size={18} />
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                className="p-2.5 bg-red-600 hover:bg-red-500 rounded-full text-white shadow-lg transition-transform hover:scale-110"
+                title="Remove Image"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-3 text-zinc-500 group-hover:text-zinc-400 transition-colors pointer-events-none">
+            <div className="p-3 bg-zinc-800/50 rounded-full group-hover:bg-zinc-800 transition-colors">
+              <UploadCloud size={28} className="text-zinc-400 group-hover:text-orange-500 transition-colors" />
+            </div>
+            <span className="text-xs text-center font-medium px-2">Drag & drop or <span className="text-orange-500">browse</span></span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -157,6 +226,55 @@ const InstrumentCombobox = ({ value, onChange }) => {
 };
 
 
+const getSnagSheetName = (names) => {
+  const numbers = names.map(n => {
+    const match = n.match(/\d+/);
+    return match ? parseInt(match[0], 10) : null;
+  });
+  
+  if (numbers.every(num => num !== null) && numbers.length > 0) {
+    const uniqueNums = [...new Set(numbers)].sort((a, b) => a - b);
+    const ranges = [];
+    let start = uniqueNums[0];
+    let prev = uniqueNums[0];
+
+    for (let i = 1; i <= uniqueNums.length; i++) {
+      if (i < uniqueNums.length && uniqueNums[i] === prev + 1) {
+        prev = uniqueNums[i];
+      } else {
+        if (start === prev) {
+          ranges.push(`${start}`);
+        } else {
+          ranges.push(`${start}-${prev}`);
+        }
+        if (i < uniqueNums.length) {
+          start = uniqueNums[i];
+          prev = uniqueNums[i];
+        }
+      }
+    }
+    
+    let rangeStr = '';
+    if (ranges.length > 1) {
+      const last = ranges.pop();
+      rangeStr = ranges.join(', ') + ' and ' + last;
+    } else {
+      rangeStr = ranges[0];
+    }
+    
+    return `${rangeStr} Snag Sheet`;
+  }
+  
+  if (names.length <= 3) {
+    if (names.length > 1) {
+      const last = names.pop();
+      return `${names.join(', ')} and ${last} Snag Sheet`;
+    }
+    return `${names[0] || 'Custom'} Snag Sheet`;
+  }
+  return `${names.slice(0, 3).join(', ')} and ${names.length - 3} more Snag Sheet`;
+};
+
 export const InputPane = ({ onLivePreviewClick }) => {
   const activeTab = useReportStore((state) => state.activeInputTab);
   const setActiveTab = useReportStore((state) => state.setActiveInputTab);
@@ -168,7 +286,6 @@ export const InputPane = ({ onLivePreviewClick }) => {
     setFormTab(previewMode === 'snagsheet' ? 'snag' : 'inspection');
   }, [previewMode]);
 
-  const fileInputRef = useRef(null);
   const [draggedRowIndex, setDraggedRowIndex] = useState(null);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [customSymbols, setCustomSymbols] = useState(() => {
@@ -194,6 +311,26 @@ export const InputPane = ({ onLivePreviewClick }) => {
   const updateProjectSettings = useReportStore((state) => state.updateProjectSettings);
   const reorderRows = useReportStore((state) => state.reorderRows);
   const updateActiveProject = useReportStore((state) => state.updateActiveProject);
+  const createSnagSheetProject = useReportStore((state) => state.createSnagSheetProject);
+  const projects = useReportStore((state) => state.projects);
+
+  const handleGenerateCustomSnagSheets = (droppedIds) => {
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < droppedIds.length; i += BATCH_SIZE) {
+      const batchIds = droppedIds.slice(i, i + BATCH_SIZE);
+      const firstProject = projects.find(p => p.id === batchIds[0]);
+      
+      const projectName = firstProject?.projectName || 'Custom Project';
+      const customer = firstProject?.customer || '';
+      
+      const batchProjects = batchIds.map(id => projects.find(p => p.id === id)).filter(Boolean);
+      const names = batchProjects.map(p => p.componentsName);
+      
+      const componentsName = getSnagSheetName(names);
+      
+      createSnagSheetProject(projectName, customer, componentsName, batchIds);
+    }
+  };
 
   if (!activeProject) return null;
 
@@ -215,17 +352,6 @@ export const InputPane = ({ onLivePreviewClick }) => {
     const updated = customSymbols.filter(s => s !== sym);
     setCustomSymbols(updated);
     localStorage.setItem('customSymbols', JSON.stringify(updated));
-  };
-
-  const handleLogoUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        updateProjectSettings('logoUrl', reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const handleSelectAll = (rowId, value, count) => {
@@ -499,33 +625,6 @@ export const InputPane = ({ onLivePreviewClick }) => {
                   )}
                 </div>
               </div>
-
-
-              {/* Image Upload */}
-              <div className="flex items-center gap-3 pl-2">
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  ref={fileInputRef}
-                  onChange={handleLogoUpload}
-                  className="hidden" 
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition-colors text-zinc-200 hover:bg-zinc-800 border border-zinc-800 shadow-sm"
-                >
-                  <ImageIcon size={16} />
-                  Upload Logo
-                </button>
-                {settings.logoUrl && (
-                  <button
-                    onClick={() => updateProjectSettings('logoUrl', null)}
-                    className="text-xs text-red-500 hover:underline"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
             </>
           )}
 
@@ -552,13 +651,19 @@ export const InputPane = ({ onLivePreviewClick }) => {
             <div className="flex flex-col w-full gap-2">
               <div className="flex gap-2 border-b border-zinc-700 pb-2">
                 <button
-                  onClick={() => setFormTab('inspection')}
+                  onClick={() => {
+                    setFormTab('inspection');
+                    useReportStore.getState().setPreviewMode('report');
+                  }}
                   className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${formTab === 'inspection' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
                 >
                   Inspection Report
                 </button>
                 <button
-                  onClick={() => setFormTab('snag')}
+                  onClick={() => {
+                    setFormTab('snag');
+                    useReportStore.getState().setPreviewMode('snagsheet');
+                  }}
                   className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${formTab === 'snag' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
                 >
                   Snag Report Form
@@ -594,53 +699,124 @@ export const InputPane = ({ onLivePreviewClick }) => {
                     <input
                       id={`input-field-${field.key}`}
                       type="text"
+                      maxLength={field.key.toLowerCase().includes('description') || field.key.toLowerCase().includes('name') || field.key.toLowerCase().includes('remark') ? 80 : (field.key.toLowerCase().endsWith('no') || field.key.toLowerCase().endsWith('nos') || field.key.toLowerCase() === 'quantity' ? 8 : 40)}
                       value={activeProject[field.key] || ''}
-                      onChange={(e) => updateActiveProject({ [field.key]: e.target.value })}
-                      className="border border-zinc-700 rounded px-2 py-1 text-sm w-full transition-all duration-300 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                      onChange={(e) => updateActiveProject({ [field.key]: e.target.value.replace(/[^a-zA-Z0-9\s\-_.,/()&:;#+]/g, '') })}
+                      className="border border-zinc-700 bg-transparent text-zinc-100 rounded px-2 py-1 text-sm w-full transition-all duration-300 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                     />
                   </div>
                 ))}
                 
-                {formTab === 'snag' && [
-                  { key: 'supplierName', label: 'Supplier Name' },
-                  { key: 'drgNo', label: 'Drawing No.' },
-                  { key: 'snagSheetNo', label: 'Snag Sheet No.' },
-                  { key: 'date', label: 'Date' },
-                  { key: 'toolDescription', label: 'Tool Description' },
-                  { key: 'projectName', label: 'Project Name' },
-                  { key: 'itemCodeNo', label: 'Item Code No.' },
-                  { key: 'poNo', label: 'P.O. No.' },
-                ].map(field => (
-                  <div key={field.key} className="flex flex-col gap-1">
-                    <label className="text-xs text-zinc-400 font-medium">{field.label}</label>
-                    <input
-                      id={`input-field-${field.key}`}
-                      type="text"
-                      value={activeProject[field.key] || ''}
-                      onChange={(e) => updateActiveProject({ [field.key]: e.target.value })}
-                      className="border border-zinc-700 rounded px-2 py-1 text-sm w-full transition-all duration-300 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
-                    />
-                  </div>
-                ))}
+                {formTab === 'snag' && (
+                  <>
+                    {[
+                      { key: 'supplierName', label: 'Supplier Name' },
+                      { key: 'drgNo', label: 'Drawing No.' },
+                      { key: 'snagSheetNo', label: 'Snag Sheet No.' },
+                      { key: 'date', label: 'Date' },
+                      { key: 'toolDescription', label: 'Tool Description' },
+                      { key: 'projectName', label: 'Project Name' },
+                      { key: 'itemCodeNo', label: 'Item Code No.' },
+                      { key: 'poNo', label: 'P.O. No.' },
+                    ].map(field => (
+                      <div key={field.key} className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-400 font-medium">{field.label}</label>
+                        <input
+                          id={`input-field-${field.key}`}
+                          type="text"
+                          maxLength={field.key.toLowerCase().includes('description') || field.key.toLowerCase().includes('name') || field.key.toLowerCase().includes('remark') ? 80 : (field.key.toLowerCase().endsWith('no') || field.key.toLowerCase().endsWith('nos') || field.key.toLowerCase() === 'quantity' ? 8 : 40)}
+                          value={activeProject[field.key] || ''}
+                          onChange={(e) => updateActiveProject({ [field.key]: e.target.value.replace(/[^a-zA-Z0-9\s\-_.,/()&:;#+]/g, '') })}
+                          className="border border-zinc-700 bg-transparent text-zinc-100 rounded px-2 py-1 text-sm w-full transition-all duration-300 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                        />
+                      </div>
+                    ))}
+                    
+                    <div className="col-span-4 mt-4">
+                      <div 
+                        className="border-2 border-dashed border-zinc-600 rounded-lg p-10 min-h-[240px] flex flex-col items-center justify-center bg-zinc-800/50 hover:bg-zinc-800 transition-colors"
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'copy';
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          try {
+                            const droppedIds = JSON.parse(e.dataTransfer.getData('application/json'));
+                            if (Array.isArray(droppedIds) && droppedIds.length > 0) {
+                              handleGenerateCustomSnagSheets(droppedIds);
+                            }
+                          } catch (err) {
+                            // ignore parsing error if it's not our custom drop
+                          }
+                        }}
+                      >
+                        <FileText size={24} className="text-zinc-500 mb-2" />
+                        <p className="text-sm text-zinc-300 text-center font-medium">
+                          Drag & Drop component files here to generate Custom Snag Sheets
+                        </p>
+                        <p className="text-xs text-zinc-500 text-center mt-1">
+                          (Max 10 files per sheet. Extra files will create additional sheets automatically)
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {formTab === 'inspection' && (
-                  <div className="flex flex-col gap-1 col-span-2">
-                    <label className="text-xs text-zinc-400 font-medium">Supplier Stamp Image</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            updateActiveProject({ supplierStampUrl: reader.result });
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="text-sm"
-                    />
+                  <div className="col-span-4 mt-2 border-t border-zinc-800 pt-2">
+                    <h4 className="text-sm font-medium text-zinc-300 mb-2">Signatures & Logos</h4>
+                    <div className="grid grid-cols-4 gap-4 h-full">
+                      <ImageDropzone 
+                        label="Industrial Logo" 
+                        value={settings.logoUrl} 
+                        onChange={(url) => updateProjectSettings('logoUrl', url)} 
+                        onRemove={() => updateProjectSettings('logoUrl', null)} 
+                      />
+                      <ImageDropzone 
+                        label="Supplier (inspected by)" 
+                        value={activeProject.supplierStampUrl} 
+                        onChange={(url) => updateActiveProject({ supplierStampUrl: url })} 
+                        onRemove={() => updateActiveProject({ supplierStampUrl: null })} 
+                      />
+                      <ImageDropzone 
+                        label="GODREJ & BOYCE MFG. CO. LTD" 
+                        value={activeProject.godrejStampUrl} 
+                        onChange={(url) => updateActiveProject({ godrejStampUrl: url })} 
+                        onRemove={() => updateActiveProject({ godrejStampUrl: null })} 
+                      />
+                      <ImageDropzone 
+                        label="Designer" 
+                        value={activeProject.godrejStampUrl2} 
+                        onChange={(url) => updateActiveProject({ godrejStampUrl2: url })} 
+                        onRemove={() => updateActiveProject({ godrejStampUrl2: null })} 
+                      />
+                    </div>
+                  </div>
+                )}
+                {formTab === 'snag' && (
+                  <div className="col-span-4 mt-2 border-t border-zinc-800 pt-2">
+                    <h4 className="text-sm font-medium text-zinc-300 mb-2">Signatures & Stamps</h4>
+                    <div className="grid grid-cols-3 gap-4 h-full">
+                      <ImageDropzone 
+                        label="Sign & Stamp of Supplier" 
+                        value={activeProject.snagSupplierStampUrl} 
+                        onChange={(url) => updateActiveProject({ snagSupplierStampUrl: url })} 
+                        onRemove={() => updateActiveProject({ snagSupplierStampUrl: null })} 
+                      />
+                      <ImageDropzone 
+                        label="Sign of Godrej QC" 
+                        value={activeProject.snagGodrejQcStampUrl} 
+                        onChange={(url) => updateActiveProject({ snagGodrejQcStampUrl: url })} 
+                        onRemove={() => updateActiveProject({ snagGodrejQcStampUrl: null })} 
+                      />
+                      <ImageDropzone 
+                        label="Sign of Godrej Design" 
+                        value={activeProject.snagGodrejDesignStampUrl} 
+                        onChange={(url) => updateActiveProject({ snagGodrejDesignStampUrl: url })} 
+                        onRemove={() => updateActiveProject({ snagGodrejDesignStampUrl: null })} 
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -714,7 +890,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                     <input
                       id={`drawing-size-${row.id}`}
                       type="text"
-                      maxLength={30}
+                      maxLength={5}
                       value={row.drawingSize || ''}
                       onChange={(e) => handleDrawingSizeChange(row, e.target.value)}
                       placeholder="e.g. 45.23"
@@ -751,7 +927,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                     />
                     <input
                       type="text"
-                      maxLength={15}
+                      maxLength={5}
                       value={row.toleranceVal || ''}
                       onChange={(e) => handleToleranceChange(row, e.target.value)}
                       placeholder="e.g. 0.2"
@@ -768,7 +944,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                       />
                       <input
                         type="text"
-                        maxLength={15}
+                        maxLength={5}
                         value={row.toleranceVal2 || ''}
                         onChange={(e) => updateRow(row.id, 'toleranceVal2', e.target.value)}
                         placeholder="e.g. 0.1"
@@ -848,10 +1024,10 @@ export const InputPane = ({ onLivePreviewClick }) => {
                       <div className="text-[10px] text-zinc-500 mb-1 text-center">Job {idx + 1}</div>
                       <input
                         type="text"
-                        maxLength={8}
+                        maxLength={5}
                         value={obs}
                         onChange={(e) => updateObservation(row.id, idx, e.target.value)}
-                        className="w-full text-center border border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-orange-500"
+                        className="w-full text-center bg-transparent text-zinc-100 border border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-orange-500"
                       />
                     </div>
                   ))}

@@ -16,7 +16,7 @@ export const Dashboard = () => {
     e.preventDefault();
     if (!projectName.trim()) return;
     const id = createProject(projectName, customer, componentsName);
-    navigate(`/editor/${id}`);
+    navigate(`/editor/${btoa(id)}`);
   };
 
   return (
@@ -33,7 +33,7 @@ export const Dashboard = () => {
             <input
               type="text"
               value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
+              onChange={(e) => setProjectName(e.target.value.replace(/[^a-zA-Z0-9\s\-_.,/()&:;#+]/g, ''))}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="e.g. HONEYWELL SM WAVE 2"
               required
@@ -44,7 +44,7 @@ export const Dashboard = () => {
             <input
               type="text"
               value={customer}
-              onChange={(e) => setCustomer(e.target.value)}
+              onChange={(e) => setCustomer(e.target.value.replace(/[^a-zA-Z0-9\s\-_.,/()&:;#+]/g, ''))}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="e.g. GODREJ AEROSPACE"
             />
@@ -54,7 +54,7 @@ export const Dashboard = () => {
             <input
               type="text"
               value={componentsName}
-              onChange={(e) => setComponentsName(e.target.value)}
+              onChange={(e) => setComponentsName(e.target.value.replace(/[^a-zA-Z0-9\s\-_.,/()&:;#+]/g, ''))}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="e.g. 01A BACKUP 1"
             />
@@ -99,7 +99,7 @@ export const Dashboard = () => {
                   {groupProjects.map((component) => (
                     <button
                       key={component.id}
-                      onClick={() => navigate(`/editor/${component.id}`)}
+                      onClick={() => navigate(`/editor/${btoa(component.id)}`)}
                       className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center justify-between group transition-colors"
                     >
                       <div className="flex items-center gap-3">

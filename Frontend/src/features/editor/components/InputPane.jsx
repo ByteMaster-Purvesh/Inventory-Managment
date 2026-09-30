@@ -6,7 +6,7 @@ import { pdf } from '@react-pdf/renderer';
 import { ReportPDF } from './pdf/ReportPDF';
 
 const SYMBOLS = ['±', '+', '-', 'Ø', '°', '▼', '⊥', 'X', '▱', '⌯', '∥', '$', '◎'];
-const FONTS = ['Helvetica', 'Times-Roman', 'Courier', 'Arial', 'Calibri', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia', 'Palatino Linotype', 'Book Antiqua', 'Comic Sans MS', 'Impact', 'Lucida Console', 'Lucida Sans Unicode', 'Arial Black', 'Arial Narrow', 'MS Sans Serif', 'MS Serif', 'System', 'Terminal', 'Courier New'];
+const FONTS = ['Helvetica', 'Times-Roman', 'Courier', 'Arial', 'Open Sans', 'Roboto'];
 const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 24];
 
 const SymbolDropdown = ({ value, onChange }) => {
@@ -276,7 +276,8 @@ const getSnagSheetName = (names) => {
 };
 
 export const InputPane = ({ onLivePreviewClick }) => {
-  const activeTab = useReportStore((state) => state.activeInputTab);
+  const activeInputTab = useReportStore((state) => state.activeInputTab);
+  const activeTab = activeInputTab === 'Home' ? 'Form' : (activeInputTab === 'Data' ? 'Tools' : activeInputTab);
   const setActiveTab = useReportStore((state) => state.setActiveInputTab);
   const previewMode = useReportStore((state) => state.previewMode);
   
@@ -313,6 +314,23 @@ export const InputPane = ({ onLivePreviewClick }) => {
   const updateActiveProject = useReportStore((state) => state.updateActiveProject);
   const createSnagSheetProject = useReportStore((state) => state.createSnagSheetProject);
   const projects = useReportStore((state) => state.projects);
+
+  const activeRow = activeProject?.rows.find(r => r.id === activeRowId);
+
+  const getStyleValue = (field) => {
+    if (activeRow && activeRow[field] !== undefined) {
+      return activeRow[field];
+    }
+    return settings[field];
+  };
+
+  const handleStyleChange = (field, value) => {
+    if (activeRowId) {
+      updateRow(activeRowId, field, value);
+    } else {
+      updateProjectSettings(field, value);
+    }
+  };
 
   const handleGenerateCustomSnagSheets = (droppedIds) => {
     const BATCH_SIZE = 10;
@@ -374,10 +392,6 @@ export const InputPane = ({ onLivePreviewClick }) => {
 
   const handleAddRow = () => {
     addRow();
-    // If the user is on a tall tab like Form, switch back to Home to ensure the row is visible
-    if (activeTab === 'Form') {
-      setActiveTab('Home');
-    }
     // Provide HCI feedback by scrolling to the newly added row
     setTimeout(() => {
       const scrollContainer = document.getElementById('rows-scroll-container');
@@ -421,7 +435,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
         <div className="flex gap-2">
           <button 
             onClick={handleAddRow}
-            className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded text-sm font-medium transition-colors"
+            className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-1.5 rounded text-sm font-medium cursor-pointer transition-colors"
           >
             <Plus size={16} />
             Add Row
@@ -431,7 +445,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
               useReportStore.getState().setPreviewMode('snagsheet');
               handleLivePreview();
             }}
-            className="flex items-center justify-center gap-2 bg-[#d97706] hover:bg-[#b45309] text-white px-3 py-1.5 rounded text-sm font-medium transition-colors w-[145px]"
+            className="flex items-center justify-center gap-2 bg-[#d97706] hover:bg-[#b45309] text-white px-3 py-1.5 rounded text-sm font-medium cursor-pointer transition-colors w-[145px]"
           >
             <Eye size={16} />
             Snack Sheet
@@ -441,7 +455,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
               useReportStore.getState().setPreviewMode('report');
               handleLivePreview();
             }}
-            className={`flex items-center justify-center gap-2 bg-[#007acc] hover:bg-[#005999] text-white px-3 py-1.5 rounded text-sm font-medium transition-colors w-[145px]`}
+            className={`flex items-center justify-center gap-2 bg-[#007acc] hover:bg-[#005999] text-white px-3 py-1.5 rounded text-sm font-medium cursor-pointer transition-colors w-[145px]`}
           >
             <Eye size={16} />
             Live Preview
@@ -453,11 +467,11 @@ export const InputPane = ({ onLivePreviewClick }) => {
       <div className="bg-zinc-800 border-b border-zinc-800 shrink-0 flex flex-col">
         {/* Ribbon Tabs */}
         <div className="flex gap-1 px-2 pt-2 border-b border-zinc-800">
-          {['Home', 'Insert', 'Data', 'Form'].map(tab => (
+          {['Tools', 'Form'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 text-sm font-medium rounded-t-md transition-colors ${
+              className={`px-4 py-1.5 text-sm font-medium rounded-t-md cursor-pointer transition-colors ${
                 activeTab === tab ? 'bg-zinc-900 text-orange-500 border-t border-l border-r border-zinc-800' : 'text-zinc-300 hover:bg-zinc-700'
               }`}
               style={{ marginBottom: activeTab === tab ? '-1px' : '0' }}
@@ -469,20 +483,20 @@ export const InputPane = ({ onLivePreviewClick }) => {
 
         {/* Ribbon Content */}
         <div className="bg-zinc-900 p-2 flex flex-wrap items-center gap-4 min-h-[60px] shadow-sm">
-          {activeTab === 'Home' && (
+          {activeTab === 'Tools' && (
             <>
               {/* Font Controls */}
               <div className="flex items-center gap-2 pr-4 border-r border-zinc-800">
                 <select 
-                  value={settings.fontFamily} 
-                  onChange={(e) => updateProjectSettings('fontFamily', e.target.value)}
+                  value={getStyleValue('fontFamily')} 
+                  onChange={(e) => handleStyleChange('fontFamily', e.target.value)}
                   className="border border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none bg-zinc-900"
                 >
                   {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
                 </select>
                 <select 
-                  value={settings.fontSize} 
-                  onChange={(e) => updateProjectSettings('fontSize', parseInt(e.target.value))}
+                  value={getStyleValue('fontSize')} 
+                  onChange={(e) => handleStyleChange('fontSize', parseInt(e.target.value))}
                   className="border border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none w-16 bg-zinc-900"
                 >
                   {SIZES.map(s => <option key={s} value={s}>{s}</option>)}
@@ -492,15 +506,15 @@ export const InputPane = ({ onLivePreviewClick }) => {
               {/* Style Controls */}
               <div className="flex items-center gap-1 pr-4 border-r border-zinc-800">
                 <button 
-                  onClick={() => updateProjectSettings('isBold', !settings.isBold)}
-                  className={`p-1.5 rounded transition-colors ${settings.isBold ? 'bg-orange-500/20 text-orange-500' : 'text-zinc-200 hover:bg-zinc-800'}`}
+                  onClick={() => handleStyleChange('isBold', !getStyleValue('isBold'))}
+                  className={`p-1.5 rounded transition-colors ${getStyleValue('isBold') ? 'bg-orange-500/20 text-orange-500' : 'text-zinc-200 hover:bg-zinc-800'}`}
                   title="Bold"
                 >
                   <Bold size={16} />
                 </button>
                 <button 
-                  onClick={() => updateProjectSettings('isItalic', !settings.isItalic)}
-                  className={`p-1.5 rounded transition-colors ${settings.isItalic ? 'bg-orange-500/20 text-orange-500' : 'text-zinc-200 hover:bg-zinc-800'}`}
+                  onClick={() => handleStyleChange('isItalic', !getStyleValue('isItalic'))}
+                  className={`p-1.5 rounded transition-colors ${getStyleValue('isItalic') ? 'bg-orange-500/20 text-orange-500' : 'text-zinc-200 hover:bg-zinc-800'}`}
                   title="Italic"
                 >
                   <Italic size={16} />
@@ -516,19 +530,15 @@ export const InputPane = ({ onLivePreviewClick }) => {
                 ].map(align => (
                   <button 
                     key={align.id}
-                    onClick={() => updateProjectSettings('textAlign', align.id)}
-                    className={`p-1.5 rounded transition-colors ${settings.textAlign === align.id ? 'bg-orange-500/20 text-orange-500' : 'text-zinc-200 hover:bg-zinc-800'}`}
+                    onClick={() => handleStyleChange('textAlign', align.id)}
+                    className={`p-1.5 rounded transition-colors ${getStyleValue('textAlign') === align.id ? 'bg-orange-500/20 text-orange-500' : 'text-zinc-200 hover:bg-zinc-800'}`}
                     title={align.title}
                   >
                     {align.icon}
                   </button>
                 ))}
               </div>
-            </>
-          )}
 
-          {activeTab === 'Insert' && (
-            <>
               {/* Symbols Grid */}
               <div className="flex items-center gap-2 pr-4 border-r border-zinc-800">
                 <span className="text-xs font-semibold text-zinc-400 mr-2 uppercase tracking-wider">Symbols:</span>
@@ -625,10 +635,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                   )}
                 </div>
               </div>
-            </>
-          )}
 
-          {activeTab === 'Data' && (
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-zinc-300 font-medium">Clear Data:</span>
@@ -638,13 +645,14 @@ export const InputPane = ({ onLivePreviewClick }) => {
                       deleteAllRows();
                     }
                   }}
-                  className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 border border-zinc-700 px-3 py-1.5 rounded transition-colors shadow-sm"
+                  className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 border border-zinc-700 px-3 py-1.5 rounded cursor-pointer transition-colors shadow-sm"
                 >
                   <Trash2 size={16} />
                   <span className="text-sm font-medium">Delete All Rows</span>
                 </button>
               </div>
             </div>
+            </>
           )}
 
           {activeTab === 'Form' && (
@@ -655,7 +663,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                     setFormTab('inspection');
                     useReportStore.getState().setPreviewMode('report');
                   }}
-                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${formTab === 'inspection' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
+                  className={`px-3 py-1.5 text-xs font-medium rounded cursor-pointer transition-colors ${formTab === 'inspection' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
                 >
                   Inspection Report
                 </button>
@@ -664,7 +672,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                     setFormTab('snag');
                     useReportStore.getState().setPreviewMode('snagsheet');
                   }}
-                  className={`px-3 py-1.5 text-xs font-medium rounded transition-colors ${formTab === 'snag' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
+                  className={`px-3 py-1.5 text-xs font-medium rounded cursor-pointer transition-colors ${formTab === 'snag' ? 'bg-orange-500/20 text-orange-500 border border-orange-500/50' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
                 >
                   Snag Report Form
                 </button>
@@ -699,7 +707,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                     <input
                       id={`input-field-${field.key}`}
                       type="text"
-                      maxLength={field.key.toLowerCase().includes('description') || field.key.toLowerCase().includes('name') || field.key.toLowerCase().includes('remark') ? 80 : (field.key.toLowerCase().endsWith('no') || field.key.toLowerCase().endsWith('nos') || field.key.toLowerCase() === 'quantity' ? 8 : 40)}
+                      maxLength={field.key === 'componentsName' ? 40 : (['toolDescription'].includes(field.key) ? 25 : (['projectName', 'supplierName'].includes(field.key) ? 35 : (field.key.toLowerCase().includes('description') || field.key.toLowerCase().includes('name') || field.key.toLowerCase().includes('remark') ? 80 : (field.key.toLowerCase().endsWith('no') || field.key.toLowerCase().endsWith('nos') || field.key.toLowerCase() === 'quantity' ? 8 : 40))))}
                       value={activeProject[field.key] || ''}
                       onChange={(e) => updateActiveProject({ [field.key]: e.target.value.replace(/[^a-zA-Z0-9\s\-_.,/()&:;#+]/g, '') })}
                       className="border border-zinc-700 bg-transparent text-zinc-100 rounded px-2 py-1 text-sm w-full transition-all duration-300 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
@@ -724,7 +732,7 @@ export const InputPane = ({ onLivePreviewClick }) => {
                         <input
                           id={`input-field-${field.key}`}
                           type="text"
-                          maxLength={field.key.toLowerCase().includes('description') || field.key.toLowerCase().includes('name') || field.key.toLowerCase().includes('remark') ? 80 : (field.key.toLowerCase().endsWith('no') || field.key.toLowerCase().endsWith('nos') || field.key.toLowerCase() === 'quantity' ? 8 : 40)}
+                          maxLength={field.key === 'componentsName' ? 40 : (['toolDescription'].includes(field.key) ? 25 : (['projectName', 'supplierName'].includes(field.key) ? 35 : (field.key.toLowerCase().includes('description') || field.key.toLowerCase().includes('name') || field.key.toLowerCase().includes('remark') ? 80 : (field.key.toLowerCase().endsWith('no') || field.key.toLowerCase().endsWith('nos') || field.key.toLowerCase() === 'quantity' ? 8 : 40))))}
                           value={activeProject[field.key] || ''}
                           onChange={(e) => updateActiveProject({ [field.key]: e.target.value.replace(/[^a-zA-Z0-9\s\-_.,/()&:;#+]/g, '') })}
                           className="border border-zinc-700 bg-transparent text-zinc-100 rounded px-2 py-1 text-sm w-full transition-all duration-300 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
@@ -797,7 +805,13 @@ export const InputPane = ({ onLivePreviewClick }) => {
                 {formTab === 'snag' && (
                   <div className="col-span-4 mt-2 border-t border-zinc-800 pt-2">
                     <h4 className="text-sm font-medium text-zinc-300 mb-2">Signatures & Stamps</h4>
-                    <div className="grid grid-cols-3 gap-4 h-full">
+                    <div className="grid grid-cols-4 gap-4 h-full">
+                      <ImageDropzone 
+                        label="Industrial Logo" 
+                        value={settings.logoUrl} 
+                        onChange={(url) => updateProjectSettings('logoUrl', url)} 
+                        onRemove={() => updateProjectSettings('logoUrl', null)} 
+                      />
                       <ImageDropzone 
                         label="Sign & Stamp of Supplier" 
                         value={activeProject.snagSupplierStampUrl} 

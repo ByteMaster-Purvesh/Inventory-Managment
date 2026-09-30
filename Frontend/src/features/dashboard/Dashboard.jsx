@@ -53,6 +53,7 @@ export const Dashboard = () => {
             <label className="block text-sm font-medium text-slate-700 mb-1">Components Name</label>
             <input
               type="text"
+              maxLength={40}
               value={componentsName}
               onChange={(e) => setComponentsName(e.target.value.replace(/[^a-zA-Z0-9\s\-_.,/()&:;#+]/g, ''))}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

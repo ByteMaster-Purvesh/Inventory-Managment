@@ -262,7 +262,12 @@ export const useReportStore = create((set, get) => ({
         places: '',
         observations: Array(state.activeProject.rows.length > 0 ? state.activeProject.rows[0].observations.length : 1).fill(''), // Array for multiple jobs/components
         instrument: '',
-        instrumentNo: ''
+        instrumentNo: '',
+        isBold: state.activeProject.settings?.isBold || false,
+        isItalic: state.activeProject.settings?.isItalic || false,
+        textAlign: state.activeProject.settings?.textAlign || 'left',
+        fontFamily: state.activeProject.settings?.fontFamily || 'Helvetica',
+        fontSize: state.activeProject.settings?.fontSize || 11
       };
       const updatedProject = {
         ...state.activeProject,

@@ -226,8 +226,16 @@ export const ReportPDF = ({ project }) => {
             </View>
 
             {/* Rows */}
-            {pageRows.map(row => (
-              <View key={row.id} style={styles.tableRow}>
+            {pageRows.map(row => {
+              const rowStyle = {
+                fontFamily: row.fontFamily || settings.fontFamily || 'Helvetica',
+                fontSize: row.fontSize || settings.fontSize || 9,
+                fontWeight: (row.isBold ?? settings.isBold) ? 'bold' : 'normal',
+                fontStyle: (row.isItalic ?? settings.isItalic) ? 'italic' : 'normal',
+                textAlign: row.textAlign || settings.textAlign || 'left'
+              };
+              return (
+              <View key={row.id} style={[styles.tableRow, rowStyle]}>
                 <View style={[styles.td, styles.colSrNo]}><Text>{row.srNo}</Text></View>
                 <View style={[styles.td, styles.colDrawing]}><Text>{(row.places || row.drawingSizeSymbol || row.drawingSize) ? formatDimension(row, false) : '-'}</Text></View>
                 <View style={[styles.td, styles.colTol]}><Text>{row.calculatedTolerance !== '-' ? row.calculatedTolerance : row.toleranceVal || '-'}</Text></View>
@@ -242,7 +250,7 @@ export const ReportPDF = ({ project }) => {
                 <View style={[styles.td, styles.colInst]}><Text>{row.instrument || '-'}</Text></View>
                 <View style={[styles.td, styles.colInstNo]}><Text>{row.instrumentNo || '-'}</Text></View>
               </View>
-            ))}
+            )})}
 
             {/* Empty Rows Padding */}
             {Array.from({ length: Math.max(0, (pageIndex === 0 ? FIRST_PAGE_ROWS : OTHER_PAGE_ROWS) - pageRows.length) }).map((_, i) => (

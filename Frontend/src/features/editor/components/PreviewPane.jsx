@@ -18,8 +18,10 @@ const InteractiveField = ({ tabName, fieldId, children, className = "p-1" }) => 
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         element.focus();
+        element.classList.add('bg-orange-500/20');
+        setTimeout(() => element.classList.remove('bg-orange-500/20'), 2000);
       }
-    }, 100);
+    }, 300);
   };
   return (
     <div 
@@ -52,12 +54,20 @@ const InteractiveRow = ({ row, children, className }) => {
         element.classList.add('bg-orange-500/20');
         setTimeout(() => element.classList.remove('bg-orange-500/20'), 2000);
       }
-    }, 150);
+    }, 300);
   };
+  const rowStyle = {
+    fontFamily: row.fontFamily || activeProject?.settings?.fontFamily || 'Helvetica',
+    fontWeight: (row.isBold ?? activeProject?.settings?.isBold) ? 'bold' : 'normal',
+    fontStyle: (row.isItalic ?? activeProject?.settings?.isItalic) ? 'italic' : 'normal',
+    textAlign: row.textAlign || activeProject?.settings?.textAlign || 'left',
+  };
+
   return (
     <tr 
       className={`${className || ''} cursor-pointer hover:bg-orange-500/20 transition-colors h-[26px]`}
       onClick={handleClick}
+      style={rowStyle}
     >
       {children}
     </tr>
@@ -541,6 +551,31 @@ export const PreviewPane = ({ onClose }) => {
     handleImageUpload(e.dataTransfer.files?.[0], 'snagSupplierStamp');
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPdf = async () => {
+    setIsExporting(true);
+    try {
+      const doc = previewMode === 'snagsheet' ? <SnagSheetPDF activeProject={activeProject} allProjects={projects} /> : <ReportPDF project={activeProject} />;
+      const asPdf = pdf();
+      asPdf.updateContainer(doc);
+      const blob = await asPdf.toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${activeProject.projectName?.replace(/\s+/g, '_')}_${previewMode === 'snagsheet' ? 'Snag_Sheet' : 'Inspection_Report'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Check console for details.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleDropSnagGodrejQcStamp = (e) => {
     e.preventDefault();
     setIsDraggingOverSnagGodrejQcStamp(false);
@@ -667,22 +702,20 @@ export const PreviewPane = ({ onClose }) => {
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <button onClick={handleShare} className="flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-3 py-1.5 rounded text-sm font-medium border border-[#2b2b2b] hover:bg-[#2b2b2b] transition-colors">
+              <button onClick={handleShare} className="flex items-center gap-2 text-zinc-400 hover:text-zinc-200 px-3 py-1.5 rounded text-sm font-medium border border-[#2b2b2b] hover:bg-[#2b2b2b] cursor-pointer transition-colors">
                 <Share2 size={16} />
                 Share
               </button>
-              <PDFDownloadLink 
-                document={previewMode === 'snagsheet' ? <SnagSheetPDF activeProject={activeProject} allProjects={projects} /> : <ReportPDF project={activeProject} />} 
-                fileName={`${activeProject.projectName?.replace(/\s+/g, '_')}_${previewMode === 'snagsheet' ? 'Snack_Sheet' : 'Inspection_Report'}.pdf`}
-                className="flex items-center gap-2 bg-[#007acc] hover:bg-[#005999] text-white px-6 py-1.5 rounded text-sm font-medium transition-colors"
+              <button 
+                onClick={handleExportPdf}
+                disabled={isExporting}
+                className={`flex items-center gap-2 px-6 py-1.5 rounded text-sm font-medium cursor-pointer transition-colors ${
+                  isExporting ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed' : 'bg-[#007acc] hover:bg-[#005999] text-white'
+                }`}
               >
-                {({ loading }) => (
-                  <>
-                    <Download size={16} />
-                    {loading ? 'Exporting...' : 'Export PDF'}
-                  </>
-                )}
-              </PDFDownloadLink>
+                <Download size={16} />
+                {isExporting ? 'Exporting...' : 'Export PDF'}
+              </button>
               {onClose && (
                 <>
                   <div className="h-4 w-px bg-zinc-700 mx-1"></div>

@@ -178,15 +178,23 @@ export const SnagSheetPDF = ({ activeProject, allProjects }) => {
                <View style={styles.tableRow}>
                  <View style={[styles.td, { width: '100%' }]}><Text>No snags found in this project.</Text></View>
                </View>
-            ) : pageRows.map(row => (
-                <View key={row.id} style={styles.tableRow}>
+            ) : pageRows.map(row => {
+              const rowStyle = {
+                fontFamily: row.fontFamily || settings.fontFamily || 'Helvetica',
+                fontSize: row.fontSize || settings.fontSize || 10,
+                fontWeight: (row.isBold ?? settings.isBold) ? 'bold' : 'normal',
+                fontStyle: (row.isItalic ?? settings.isItalic) ? 'italic' : 'normal',
+                textAlign: row.textAlign || settings.textAlign || 'center'
+              };
+              return (
+                <View key={row.id} style={[styles.tableRow, rowStyle]}>
                   <View style={[styles.td, { width: '25%', textAlign: 'left', paddingLeft: 6 }]}><Text>{row.isFirstOfComponent ? row.componentName : ''}</Text></View>
                   <View style={[styles.td, { width: '10%' }]}><Text>{row.srNo}</Text></View>
                   <View style={[styles.td, { width: '20%' }]}><Text>{formatDimension(row, true)}</Text></View>
                   <View style={[styles.td, { width: '20%' }]}><Text>{row.observations.filter(o => o !== undefined && o !== '' && checkIsOutOfTolerance(row.calculatedTolerance, o)).join(' / ')}</Text></View>
                   <View style={[styles.td, { width: '25%' }]}><Text></Text></View>
                 </View>
-            ))}
+            )})}
 
             {/* Empty Rows Padding */}
             {Array.from({ length: Math.max(0, (pageIndex === 0 ? FIRST_PAGE_ROWS : OTHER_PAGE_ROWS) - pageRows.length) }).map((_, i) => (
